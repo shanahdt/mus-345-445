@@ -1,0 +1,2339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bayesian Thinking for Music Researchers</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+:root {
+  --ink: #1a1208; --paper: #f5f0e8; --cream: #ede8dc;
+  --staff: #8b7355; --accent: #c84b2f; --blue: #2c5f8a;
+  --gold: #b8860b; --green: #3d6b4f; --muted: #6b5d4a; --border: #c8b99a;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #0e0b07; font-family: 'IBM Plex Sans', sans-serif; }
+
+/* ── DECK ── */
+#deck { width: 100%; height: 100%; position: relative; }
+
+.slide {
+  position: absolute; inset: 0;
+  display: none; flex-direction: column;
+  opacity: 0; transition: opacity 0.3s ease;
+}
+.slide.active { display: flex; }
+.slide.visible { opacity: 1; }
+
+/* ── PROGRESS ── */
+#progress {
+  position: fixed; top: 0; left: 0; height: 3px;
+  background: var(--accent); transition: width 0.35s ease; z-index: 300;
+}
+
+/* ── NAV ── */
+#nav-btns {
+  position: fixed; bottom: 1.25rem; right: 1.5rem;
+  display: flex; align-items: center; gap: 0.6rem; z-index: 200;
+}
+.nav-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.14);
+  color: rgba(255,255,255,0.55); font-size: 1rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+}
+.nav-btn:hover { background: rgba(255,255,255,0.18); color: white; }
+.nav-btn:disabled { opacity: 0.2; cursor: default; }
+#slide-num {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem;
+  color: rgba(255,255,255,0.3); letter-spacing: 0.1em; min-width: 52px; text-align: center;
+}
+
+/* ── MENU ── */
+#menu-toggle {
+  position: fixed; top: 0.9rem; right: 1.25rem; z-index: 300;
+  width: 30px; height: 30px; background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12); border-radius: 4px;
+  color: rgba(255,255,255,0.45); font-size: 0.8rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+#menu-toggle:hover { background: rgba(255,255,255,0.14); }
+
+#slide-menu {
+  position: fixed; top: 0; right: 0; width: 270px; height: 100%;
+  background: #0a0805; border-left: 1px solid rgba(245,240,232,0.07);
+  z-index: 250; overflow-y: auto; padding: 3rem 0 2rem;
+  transform: translateX(100%); transition: transform 0.25s ease;
+}
+#slide-menu.open { transform: none; }
+
+.menu-section {
+  padding: 0.9rem 1.25rem 0.25rem;
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.58rem;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: rgba(245,240,232,0.2); border-top: 1px solid rgba(245,240,232,0.05); margin-top: 0.4rem;
+}
+.menu-item {
+  padding: 0.5rem 1.25rem; display: flex; gap: 0.7rem; align-items: baseline;
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem;
+  color: rgba(245,240,232,0.38); cursor: pointer;
+  border-left: 2px solid transparent; transition: all 0.12s;
+}
+.menu-item:hover { color: rgba(245,240,232,0.8); background: rgba(255,255,255,0.04); }
+.menu-item.cur { color: var(--accent); border-left-color: var(--accent); }
+.menu-item .mn { opacity: 0.4; min-width: 22px; }
+
+/* ── KEYBOARD HINT ── */
+#kbd { position: fixed; bottom: 1.4rem; left: 1.5rem; z-index: 200;
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.58rem;
+  color: rgba(255,255,255,0.16); letter-spacing: 0.08em; }
+
+/* ══════════════════════════════════════
+   SLIDE LAYOUTS
+══════════════════════════════════════ */
+.bg-dark  { background: var(--ink); color: var(--paper); }
+.bg-paper { background: var(--paper); color: var(--ink); }
+.bg-cream { background: var(--cream); color: var(--ink); }
+
+/* staff lines */
+.staff::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background-image: repeating-linear-gradient(180deg,
+    transparent 0px, transparent 30px,
+    rgba(139,115,85,0.07) 30px, rgba(139,115,85,0.07) 31px);
+}
+
+.body {
+  flex: 1; overflow-y: auto; position: relative;
+  padding: 3.5rem 5rem 4rem;
+  display: flex; flex-direction: column; justify-content: center;
+  max-width: 980px; margin: 0 auto; width: 100%;
+}
+.body.wide { max-width: 1100px; }
+.body.narrow { max-width: 820px; }
+.body.full { max-width: 100%; padding: 3rem 4.5rem; }
+.body.scroll { justify-content: flex-start; padding-top: 3rem; }
+
+/* scrollbar */
+.body::-webkit-scrollbar { width: 4px; }
+.body::-webkit-scrollbar-thumb { background: rgba(245,240,232,0.12); }
+
+/* ── TYPOGRAPHY ── */
+.tag {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.62rem;
+  letter-spacing: 0.2em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.6rem;
+}
+.bg-dark .tag { color: var(--gold); }
+
+h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(2.2rem, 4.5vw, 3.6rem);
+  line-height: 1.1; font-weight: 700; margin-bottom: 1rem;
+}
+h1 em { font-style: italic; color: var(--accent); }
+.bg-dark h1 em { color: var(--gold); }
+
+h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: clamp(1.5rem, 2.8vw, 2.2rem);
+  line-height: 1.15; font-weight: 700; margin-bottom: 0.4rem;
+}
+.bg-dark h2 { color: var(--paper); }
+
+h3 {
+  font-family: 'Playfair Display', serif; font-size: 1rem;
+  font-weight: 400; font-style: italic; color: var(--muted); margin-bottom: 1rem;
+}
+.bg-dark h3 { color: rgba(245,240,232,0.5); }
+
+p { font-size: 0.92rem; line-height: 1.75; margin-bottom: 0.8rem; max-width: 700px; }
+.bg-dark p { color: rgba(245,240,232,0.82); }
+
+ul { margin: 0.4rem 0 0.8rem 1.3rem; }
+li { font-size: 0.88rem; line-height: 1.9; }
+.bg-dark li { color: rgba(245,240,232,0.8); }
+
+/* ── FORMULA ── */
+.formula {
+  font-family: 'IBM Plex Mono', monospace;
+  background: rgba(26,18,8,0.05); border: 1px solid var(--border);
+  padding: 0.9rem 1.25rem; margin: 0.9rem 0;
+  font-size: 0.86rem; letter-spacing: 0.01em; line-height: 1.85;
+}
+.bg-dark .formula { background: rgba(255,255,255,0.05); border-color: rgba(245,240,232,0.12); color: var(--paper); }
+.formula .hl  { color: var(--accent); font-weight: 500; }
+.formula .gld { color: var(--gold); }
+.formula .blu { color: #5a8fb8; }
+.formula .grn { color: var(--green); }
+.bg-dark .formula .blu { color: #7aabcf; }
+
+.big-formula {
+  font-family: 'IBM Plex Mono', monospace; font-size: 1.05rem;
+  background: var(--ink); color: var(--paper);
+  padding: 1rem 1.75rem; display: inline-block;
+  border-left: 4px solid var(--accent); margin: 1.5rem 0;
+}
+.bg-dark .big-formula { background: rgba(255,255,255,0.06); }
+.big-formula span { color: var(--gold); }
+
+/* ── TWO COLUMNS ── */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin: 1rem 0; }
+
+.col-f { background: rgba(44,95,138,0.06); border: 1px solid var(--blue); padding: 1.1rem; }
+.col-b { background: rgba(200,75,47,0.06); border: 1px solid var(--accent); padding: 1.1rem; }
+.bg-dark .col-b { background: rgba(200,75,47,0.1); }
+.col-head {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  padding-bottom: 0.45rem; border-bottom: 2px solid currentColor; margin-bottom: 0.7rem;
+}
+.col-f .col-head { color: var(--blue); }
+.col-b .col-head { color: var(--accent); }
+.col-f li, .col-f p { font-size: 0.83rem; }
+.col-b li, .col-b p { font-size: 0.83rem; color: var(--ink); }
+.bg-dark .col-b li, .bg-dark .col-b p { color: rgba(245,240,232,0.82); }
+
+/* ── CARD ── */
+.card {
+  background: white; border: 1px solid var(--border);
+  padding: 1.1rem 1.25rem; margin-bottom: 0.9rem;
+  border-left: 4px solid var(--accent);
+}
+.card.blue { border-left-color: var(--blue); }
+.card.gold { border-left-color: var(--gold); }
+.card.green { border-left-color: var(--green); }
+.bg-dark .card { background: rgba(255,255,255,0.05); border-color: rgba(245,240,232,0.1); }
+
+/* ── KEY CONCEPT ── */
+.kc {
+  background: rgba(200,75,47,0.05); border: 1px solid rgba(200,75,47,0.2);
+  padding: 0.9rem 1.1rem; margin: 1rem 0; font-size: 0.87rem;
+}
+.bg-dark .kc { background: rgba(200,75,47,0.09); border-color: rgba(200,75,47,0.28); color: rgba(245,240,232,0.85); }
+.kc-title {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.58rem;
+  letter-spacing: 0.15em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.35rem;
+}
+
+/* ── GLOSSARY CARD ── */
+.gc {
+  border: 1px solid rgba(245,240,232,0.12); padding: 1.4rem;
+  margin-bottom: 1rem; position: relative;
+}
+.gc-term {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.6rem;
+  letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 0.3rem;
+}
+.gc-title { font-family: 'Playfair Display', serif; font-size: 1.5rem; color: var(--paper); margin-bottom: 0.5rem; }
+.gc-def { font-size: 0.87rem; color: rgba(245,240,232,0.75); margin-bottom: 0.75rem; }
+.gc-ex {
+  background: rgba(255,255,255,0.05); padding: 0.7rem 0.9rem;
+  font-size: 0.81rem; margin-top: 0.5rem; color: rgba(245,240,232,0.78);
+  border-left: 3px solid currentColor;
+}
+.gc-ex-label {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.56rem;
+  letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.6; margin-bottom: 0.25rem;
+}
+
+/* ── FLOW DIAGRAM ── */
+.flow { display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap; margin: 1.1rem 0; }
+.flow-box {
+  padding: 0.4rem 0.85rem; border: 1px solid currentColor;
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; line-height: 1.4; text-align: center;
+}
+.flow-op { font-size: 1.1rem; color: rgba(245,240,232,0.22); }
+
+/* ── WIDGET CHROME ── */
+.widget {
+  background: var(--ink); color: var(--paper);
+  padding: 1.4rem 1.75rem; margin: 0.75rem 0;
+}
+.bg-dark .widget { background: rgba(255,255,255,0.04); border: 1px solid rgba(245,240,232,0.1); }
+.widget-tag {
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.58rem;
+  letter-spacing: 0.15em; text-transform: uppercase; color: var(--gold); margin-bottom: 0.4rem;
+}
+.widget h4 { font-family: 'Playfair Display', serif; font-size: 1.05rem; color: var(--paper); margin-bottom: 0.35rem; }
+.widget > p { color: rgba(245,240,232,0.7); font-size: 0.82rem; }
+
+/* ── SLIDERS ── */
+.sl-row { display: flex; align-items: center; gap: 0.7rem; margin: 0.5rem 0; flex-wrap: wrap; }
+.sl-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.68rem; color: var(--gold); min-width: 160px; }
+input[type="range"] {
+  -webkit-appearance: none; height: 3px; background: rgba(245,240,232,0.18);
+  flex: 1; min-width: 100px; outline: none; cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px; background: var(--accent); border-radius: 50%;
+}
+.sl-val { font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem; color: var(--accent); min-width: 42px; text-align: right; }
+
+/* ── RESULT BOX ── */
+.result-box {
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(245,240,232,0.1);
+  border-left: 3px solid var(--accent); padding: 0.85rem 1.1rem; margin-top: 0.9rem;
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.82rem; line-height: 1.9;
+}
+.r-label { font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); margin-bottom: 0.2rem; }
+.r-big { font-size: 1.5rem; color: var(--accent); font-weight: 500; }
+
+/* ── BAR CHART ── */
+.bar-chart { margin: 0.6rem 0; }
+.bar-row { display: flex; align-items: center; gap: 0.55rem; margin-bottom: 0.4rem; }
+.bar-name { font-family: 'IBM Plex Mono', monospace; font-size: 0.65rem; min-width: 80px; text-align: right; color: var(--gold); }
+.bar-track { flex: 1; height: 18px; background: rgba(255,255,255,0.05); position: relative; overflow: hidden; }
+.bar-fill { height: 100%; background: var(--accent); transition: width 0.5s ease; position: relative; }
+.bar-fill::after { content: attr(data-val); position: absolute; right: 5px; top: 50%; transform: translateY(-50%); font-family: 'IBM Plex Mono', monospace; font-size: 0.58rem; color: white; white-space: nowrap; }
+
+/* ── BUTTONS ── */
+.btn {
+  background: var(--accent); color: white; border: none;
+  padding: 0.45rem 1.1rem; font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
+  cursor: pointer; transition: background 0.15s;
+}
+.btn:hover { background: #a33a20; }
+.btn.sec { background: transparent; border: 1px solid rgba(245,240,232,0.22); color: rgba(245,240,232,0.6); }
+.btn.sec:hover { background: rgba(245,240,232,0.08); }
+.btn.blu { background: var(--blue); }
+.btn.blu:hover { background: #224a6e; }
+.btn.grn { background: var(--green); }
+.btn.grn:hover { background: #2d5039; }
+.btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin: 0.65rem 0; }
+
+/* ── COIN / OBSERVATION TOKENS ── */
+.coin-row { display: flex; gap: 4px; flex-wrap: wrap; min-height: 26px; margin: 0.5rem 0; }
+.coin {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: bold; animation: pop 0.2s ease;
+}
+@keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
+.coin.A { background: var(--accent); color: white; }
+.coin.N { background: rgba(245,240,232,0.12); color: rgba(245,240,232,0.4); }
+
+/* ── PROGRESS FILL ── */
+.prog-track { height: 5px; background: rgba(245,240,232,0.08); margin: 0.4rem 0; }
+.prog-fill { height: 100%; background: var(--green); transition: width 0.4s; }
+
+/* ── PITCH GRID ── */
+.pitch-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; margin: 0.75rem 0; }
+.pc {
+  height: 30px; background: rgba(255,255,255,0.07);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.58rem;
+  cursor: pointer; transition: background 0.12s; color: rgba(245,240,232,0.5);
+}
+.pc:hover { background: rgba(255,255,255,0.15); }
+.pc.sel { background: var(--accent); color: white; }
+
+/* ── ACCORDION ── */
+.acc { border: 1px solid var(--border); margin-bottom: 0.4rem; }
+.bg-dark .acc { border-color: rgba(245,240,232,0.1); }
+.acc-h {
+  padding: 0.6rem 0.9rem; cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center;
+  font-family: 'IBM Plex Mono', monospace; font-size: 0.73rem;
+  background: rgba(26,18,8,0.03); user-select: none;
+}
+.bg-dark .acc-h { background: rgba(255,255,255,0.03); color: rgba(245,240,232,0.8); }
+.acc-h:hover { background: rgba(26,18,8,0.07); }
+.bg-dark .acc-h:hover { background: rgba(255,255,255,0.07); }
+.acc-arrow { transition: transform 0.2s; }
+.acc-h.open .acc-arrow { transform: rotate(90deg); }
+.acc-b { display: none; padding: 0.8rem 0.9rem; font-size: 0.84rem; line-height: 1.7; }
+.bg-dark .acc-b { color: rgba(245,240,232,0.78); }
+.acc-b.open { display: block; }
+
+/* ── CHECKLIST ── */
+.chk-item { display: flex; gap: 0.65rem; align-items: flex-start; margin-bottom: 0.55rem; cursor: pointer; }
+.chk-item input { margin-top: 3px; flex-shrink: 0; }
+.chk-eg { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; color: var(--muted); margin-top: 0.1rem; }
+.bg-dark .chk-eg { color: rgba(245,240,232,0.38); }
+
+/* ── BLOCKQUOTE ── */
+blockquote {
+  border-left: 3px solid var(--gold); padding: 0.65rem 1.25rem; margin: 0.9rem 0;
+  font-style: italic; font-family: 'Playfair Display', serif; font-size: 0.98rem;
+}
+.bg-dark blockquote { color: rgba(245,240,232,0.68); }
+.bg-paper blockquote { color: var(--muted); }
+
+/* ── ERROR BOX ── */
+.err-box { border: 1px solid #e8c4c4; background: #fdf5f5; padding: 1rem 1.25rem; }
+.err-title { font-family: 'IBM Plex Mono', monospace; font-size: 0.58rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); margin-bottom: 0.6rem; }
+
+/* ── SCENARIO GRID ── */
+.sc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; margin: 1rem 0; }
+.sc-cell { padding: 0.9rem; font-size: 0.83rem; border-left: 2px solid currentColor; background: rgba(255,255,255,0.04); }
+.sc-cell p { font-size: 0.83rem; color: rgba(245,240,232,0.8); margin-bottom: 0; }
+.sc-label { font-family: 'IBM Plex Mono', monospace; font-size: 0.56rem; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 0.3rem; }
+
+canvas { display: block; width: 100%; }
+small { font-size: 0.77rem; }
+.mono { font-family: 'IBM Plex Mono', monospace; }
+.gold { color: var(--gold); }
+.red  { color: var(--accent); }
+.blue { color: var(--blue); }
+.grn  { color: var(--green); }
+.muted { color: var(--muted); }
+.bg-dark .muted { color: rgba(245,240,232,0.42); }
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+<button id="menu-toggle" onclick="menuToggle()">☰</button>
+
+<nav id="slide-menu">
+  <div class="menu-section">Introduction</div>
+  <div class="menu-item" onclick="goTo(0)"><span class="mn">00</span>Title</div>
+  <div class="menu-item" onclick="goTo(1)"><span class="mn">01</span>Why Probability?</div>
+  <div class="menu-section">Core Vocabulary</div>
+  <div class="menu-item" onclick="goTo(2)"><span class="mn">02</span>Prior · P(H)</div>
+  <div class="menu-item" onclick="goTo(3)"><span class="mn">03</span>Likelihood · P(D|H)</div>
+  <div class="menu-item" onclick="goTo(4)"><span class="mn">04</span>Posterior · P(H|D)</div>
+  <div class="menu-item" onclick="goTo(5)"><span class="mn">05</span>Marginal + Flow</div>
+  <div class="menu-item" onclick="goTo(6)"><span class="mn">06</span>Worked Scenario</div>
+  <div class="menu-section">Freq vs. Bayes</div>
+  <div class="menu-item" onclick="goTo(7)"><span class="mn">07</span>Two Philosophies</div>
+  <div class="menu-item" onclick="goTo('7b')"><span class="mn">07b</span>The Beta Update Rule</div>
+  <div class="menu-item" onclick="goTo(8)"><span class="mn">08</span>Cadential Preference</div>
+  <div class="menu-item" onclick="goTo(9)"><span class="mn">09</span>Major vs. Minor Affect</div>
+  <div class="menu-item" onclick="goTo('9b')"><span class="mn">09b</span>Informed Priors</div>
+  <div class="menu-item" onclick="goTo(10)"><span class="mn">10</span>Pitch Memory (small n)</div>
+  <div class="menu-section">Bayes' Theorem</div>
+  <div class="menu-item" onclick="goTo(11)"><span class="mn">11</span>The Theorem</div>
+  <div class="menu-item" onclick="goTo(12)"><span class="mn">12</span>Widget: Key Detection</div>
+  <div class="menu-section">Exercises</div>
+  <div class="menu-item" onclick="goTo(13)"><span class="mn">13</span>Melody Recognition</div>
+  <div class="menu-item" onclick="goTo(14)"><span class="mn">14</span>Post-Skip Reversal</div>
+  <div class="menu-item" onclick="goTo(15)"><span class="mn">15</span>Composer Attribution</div>
+  <div class="menu-item" onclick="goTo(16)"><span class="mn">16</span>Jazz Chord Prediction</div>
+  <div class="menu-section">Belief Updating</div>
+  <div class="menu-item" onclick="goTo(17)"><span class="mn">17</span>Widget: Sequential Update</div>
+  <div class="menu-item" onclick="goTo(18)"><span class="mn">18</span>Beta-Binomial Model</div>
+  <div class="menu-section">Corpus Studies</div>
+  <div class="menu-item" onclick="goTo(19)"><span class="mn">19</span>Widget: Intervallic Pref.</div>
+  <div class="menu-item" onclick="goTo(20)"><span class="mn">20</span>Corpus Claims Compared</div>
+  <div class="menu-section">Music Education</div>
+  <div class="menu-item" onclick="goTo(21)"><span class="mn">21</span>Quiz: Ready to Advance?</div>
+  <div class="menu-item" onclick="goTo('21b')"><span class="mn">21b</span>A Second Assessment</div>
+  <div class="menu-item" onclick="goTo(23)"><span class="mn">23</span>Widget: Practice Tracker</div>
+  <div class="menu-item" onclick="goTo(24)"><span class="mn">24</span>Concert Attendance</div>
+  <div class="menu-item" onclick="goTo(25)"><span class="mn">25</span>Widget: Wrong Note Dx</div>
+  <div class="menu-item" onclick="goTo(26)"><span class="mn">26</span>Quiz: The "Talented" Student</div>
+  <div class="menu-item" onclick="goTo(27)"><span class="mn">27</span>Widget: Lesson Dropout</div>
+  <div class="menu-section">Reporting</div>
+  <div class="menu-item" onclick="goTo(27)"><span class="mn">27</span>Language &amp; Claims</div>
+  <div class="menu-item" onclick="goTo(28)"><span class="mn">28</span>Common Errors</div>
+  <div class="menu-item" onclick="goTo(29)"><span class="mn">29</span>Widget: Sample Size</div>
+  <div class="menu-item" onclick="goTo(30)"><span class="mn">30</span>Reporting Checklist</div>
+  <div class="menu-item" onclick="goTo(31)"><span class="mn">31</span>Responding to Reviewers</div>
+  <div class="menu-section">Summary</div>
+  <div class="menu-item" onclick="goTo(32)"><span class="mn">32</span>Key Takeaways</div>
+</nav>
+
+<div id="nav-btns">
+  <span id="slide-num">0 / 32</span>
+  <button class="nav-btn" id="btn-p" onclick="prev()">←</button>
+  <button class="nav-btn" id="btn-n" onclick="next()">→</button>
+</div>
+<div id="kbd">← → arrow keys · ESC menu</div>
+
+<div id="deck">
+
+<!-- ══ 00 TITLE ══════════════════════════════════════════════════════════ -->
+<div class="slide bg-dark staff" id="s0">
+<div class="body" style="justify-content:center">
+  <div class="tag">Music Research Methods · Northwestern Bienen School of Music</div>
+  <h1 style="font-size:clamp(2.5rem,5vw,4rem)">Bayesian Thinking<br>for <em>Music Researchers</em></h1>
+  <p style="max-width:520px;margin-top:0.5rem">From prior beliefs to posterior knowledge — an interactive introduction to probabilistic reasoning through musical examples.</p>
+  <div class="big-formula">P(<span>H</span> | D) = P(<span>D</span> | H) · P(<span>H</span>) / P(<span>D</span>)</div>
+  <p class="mono muted" style="font-size:0.62rem;margin-top:2.5rem;letter-spacing:0.1em">USE ARROW KEYS OR → TO ADVANCE</p>
+</div>
+</div>
+
+<!-- ══ 01 WHY PROBABILITY ════════════════════════════════════════════════ -->
+<div class="slide bg-paper staff" id="s1">
+<div class="body scroll">
+  <div class="tag">Module 01 · Introduction</div>
+  <h2>Why Probability?</h2>
+  <h3>What does it mean to "know" something in music research?</h3>
+  <p>Music researchers make probabilistic claims constantly: <em>"Composers in the common practice preferred stepwise motion." "Listeners expect tonic resolution." "Jazz soloists target chord tones on strong beats."</em> These are statements about frequencies, tendencies, and expectations — which means they are <strong>inherently statistical</strong>.</p>
+  <blockquote>"The frequentist asks: what is the probability of this data given the hypothesis? The Bayesian asks: what is the probability of the hypothesis given this data?"</blockquote>
+  <div class="two-col" style="margin-top:1rem">
+    <div class="col-f">
+      <div class="col-head">Frequentist</div>
+      <p>Probability = <strong>long-run frequency</strong>. Parameters are fixed; data is random. Asks P(data&nbsp;|&nbsp;H₀) and produces p-values, confidence intervals, and reject/fail-to-reject decisions.</p>
+    </div>
+    <div class="col-b">
+      <div class="col-head">Bayesian</div>
+      <p>Probability = <strong>degree of belief</strong>. Parameters have distributions. Asks P(H&nbsp;|&nbsp;data) and produces posteriors and credible intervals, updating on evidence.</p>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 02 PRIOR ═══════════════════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="s2">
+<div class="body scroll">
+  <div class="tag" style="color:var(--gold)">Core Vocabulary · ① Prior</div>
+  <div class="gc" style="border-top:3px solid var(--gold)">
+    <div class="gc-term" style="color:var(--gold)">P(H) · What you believe before seeing the data</div>
+    <div class="gc-title">The Prior</div>
+    <div class="gc-def">The prior encodes everything you know — or assume — before new evidence arrives. It may come from prior studies, domain expertise, or be deliberately vague (uninformative).</div>
+    <div class="gc-ex" style="border-color:var(--gold)">
+      <div class="gc-ex-label">Musical Example</div>
+      Before analyzing Schubert lieder, you believe roughly 50/50 that any phrase ends on a half vs. full cadence. That uncertainty is your prior: <span class="mono gold">P(full cadence) = 0.5</span>
+    </div>
+    <div class="gc-ex" style="border-color:rgba(184,134,11,0.35);margin-top:0.5rem">
+      <div class="gc-ex-label">Studio Example</div>
+      A teacher believes 40% of incoming students are consistent self-practicers, based on years of experience — an informative prior encoding real knowledge.
+    </div>
+  </div>
+  <div class="kc">
+    <div class="kc-title">Uninformative vs. Informative</div>
+    A flat prior, e.g. Beta(1,1), says "I have no idea." An informative prior, e.g. Beta(8,2), encodes a strong expectation of high values. Neither is more "objective" — choosing a flat prior is still a choice.
+  </div>
+</div>
+</div>
+
+<!-- ══ 03 LIKELIHOOD ══════════════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="s3">
+<div class="body scroll">
+  <div class="tag" style="color:#7aabcf">Core Vocabulary · ② Likelihood</div>
+  <div class="gc" style="border-top:3px solid var(--blue)">
+    <div class="gc-term" style="color:#7aabcf">P(D | H) · How well the hypothesis predicts the data</div>
+    <div class="gc-title">The Likelihood</div>
+    <div class="gc-def">The likelihood asks: <em>if the hypothesis were true</em>, how probable would this specific data be? High likelihood means the data "fits" the hypothesis well. Notice the direction — P(data | hypothesis), not the reverse.</div>
+    <div class="gc-ex" style="border-color:var(--blue)">
+      <div class="gc-ex-label">Musical Example</div>
+      Hypothesis: "This piece is in A major." Data: F# appears frequently.<br>
+      <span class="mono" style="color:#7aabcf">P(F# frequent | A major)</span> is high — F# is the 6th scale degree. The data fits the hypothesis well.
+    </div>
+    <div class="gc-ex" style="border-color:rgba(44,95,138,0.4);margin-top:0.5rem">
+      <div class="gc-ex-label">Studio Example</div>
+      Hypothesis: "Student understands scales." Data: student passes a written test.<br>
+      <span class="mono" style="color:#7aabcf">P(pass | understands)</span> = 0.90. Understanding usually leads to passing — high likelihood.
+    </div>
+  </div>
+  <div class="kc">
+    <div class="kc-title">The Key Direction</div>
+    Likelihood is P(data | hypothesis) — not P(hypothesis | data). That inversion is exactly what Bayes' theorem achieves.
+  </div>
+</div>
+</div>
+
+<!-- ══ 04 POSTERIOR ═══════════════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="s4">
+<div class="body scroll">
+  <div class="tag" style="color:var(--accent)">Core Vocabulary · ③ Posterior</div>
+  <div class="gc" style="border-top:3px solid var(--accent)">
+    <div class="gc-term" style="color:var(--accent)">P(H | D) · What you believe after seeing the data</div>
+    <div class="gc-title">The Posterior</div>
+    <div class="gc-def">The posterior is the goal — your updated belief about the hypothesis having incorporated new evidence. It balances the prior with how well the hypothesis predicted the data. <strong>Today's posterior is tomorrow's prior.</strong></div>
+    <div class="gc-ex" style="border-color:var(--accent)">
+      <div class="gc-ex-label">Musical Example</div>
+      You started 50/50 on cadence types. After analyzing 40 Schubert phrases and finding 28 full cadences:<br>
+      <span class="mono" style="color:#e8897a">P(full cadence | data) ≈ 0.71</span>. Sharper, more informed belief.
+    </div>
+    <div class="gc-ex" style="border-color:rgba(200,75,47,0.35);margin-top:0.5rem">
+      <div class="gc-ex-label">Studio Example</div>
+      The teacher sees daily practice for 3 weeks. Posterior rises 0.40 → 0.85 that this is a consistent practicer. Evidence accumulates.
+    </div>
+  </div>
+  <div class="kc">
+    <div class="kc-title">The Bayesian Loop</div>
+    Each study produces a posterior. That posterior becomes the prior for the next study. Science accumulates formally — not through a series of independent binary verdicts.
+  </div>
+</div>
+</div>
+
+<!-- ══ 05 MARGINAL + FLOW ════════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="s5">
+<div class="body scroll">
+  <div class="tag" style="color:#7fc99a">Core Vocabulary · ④ Marginal Likelihood + The Formula</div>
+  <div class="gc" style="border-top:3px solid var(--green);margin-bottom:1rem">
+    <div class="gc-term" style="color:#7fc99a">P(D) · How surprising is this data overall?</div>
+    <div class="gc-title">The Marginal Likelihood</div>
+    <div class="gc-def">A normalizing constant — the average probability of the data across all hypotheses. In practice: <span class="mono" style="color:#7fc99a">P(D|H)·P(H) + P(D|¬H)·P(¬H)</span>. When comparing two hypotheses it cancels out and can be ignored.</div>
+  </div>
+  <p class="mono muted" style="font-size:0.6rem;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:0.7rem">How the four terms connect</p>
+  <div class="flow">
+    <div class="flow-box" style="color:var(--gold);border-color:var(--gold)">Prior<br><small>P(H)</small></div>
+    <div class="flow-op">×</div>
+    <div class="flow-box" style="color:#7aabcf;border-color:var(--blue)">Likelihood<br><small>P(D|H)</small></div>
+    <div class="flow-op">÷</div>
+    <div class="flow-box" style="color:#7fc99a;border-color:var(--green)">Evidence<br><small>P(D)</small></div>
+    <div class="flow-op">=</div>
+    <div class="flow-box" style="color:var(--accent);border-color:var(--accent);background:rgba(200,75,47,0.1)">Posterior<br><small>P(H|D)</small></div>
+  </div>
+  <div class="formula">
+    P(<span class="hl">H</span> | D) = [ P(<span class="grn">D</span> | <span class="hl">H</span>) × P(<span class="gld">H</span>) ] / P(<span class="blu">D</span>)
+  </div>
+  <p style="font-size:0.82rem;color:rgba(245,240,232,0.48)">Start with what you believed → multiply by how well the hypothesis predicted the data → divide by how likely the data was in general → updated belief.</p>
+</div>
+</div>
+
+<!-- ══ 06 WORKED SCENARIO ════════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="s6">
+<div class="body scroll">
+  <div class="tag" style="color:var(--gold)">Core Vocabulary · Putting It Together</div>
+  <h2>A Studio Scenario</h2>
+  <h3>All four terms in action</h3>
+  <div class="sc-grid">
+    <div class="sc-cell" style="color:var(--gold);border-color:var(--gold)">
+      <div class="sc-label" style="color:var(--gold)">① Prior · P(H)</div>
+      <p>A teacher thinks <strong>30%</strong> of new students persist past year 1 — her base rate from experience.</p>
+    </div>
+    <div class="sc-cell" style="color:#7aabcf;border-color:var(--blue)">
+      <div class="sc-label" style="color:#7aabcf">② Likelihood · P(D|H)</div>
+      <p>Student practices every day this week. Students who persist do this <strong>80%</strong> of the time; those who quit, only <strong>20%</strong>.</p>
+    </div>
+    <div class="sc-cell" style="color:#7fc99a;border-color:var(--green)">
+      <div class="sc-label" style="color:#7fc99a">③ Evidence · P(D)</div>
+      <p>P(daily practice) = 0.80×0.30 + 0.20×0.70 = <strong>0.38</strong></p>
+    </div>
+    <div class="sc-cell" style="color:var(--accent);border-color:var(--accent);background:rgba(200,75,47,0.08)">
+      <div class="sc-label" style="color:var(--accent)">④ Posterior · P(H|D)</div>
+      <p>P(persist | daily practice) = (0.80 × 0.30) / 0.38 = <strong style="color:var(--accent)">0.63</strong><br><small style="color:rgba(245,240,232,0.45)">30% prior → 63% posterior after one good week</small></p>
+    </div>
+  </div>
+  <div class="kc">
+    <div class="kc-title">Key Insight</div>
+    The posterior (63%) is much higher than the prior (30%), but less than the likelihood ratio alone would suggest. The 30% base rate acts as a brake — one good week isn't conclusive. This is the <em>base rate</em> in action.
+  </div>
+</div>
+</div>
+
+<!-- ══ 07 TWO PHILOSOPHIES ═══════════════════════════════════════════════ -->
+<div class="slide bg-paper staff" id="s7">
+<div class="body scroll">
+  <div class="tag">Module 02 · Freq vs. Bayes</div>
+  <h2>Two Philosophies</h2>
+  <h3>The same musical question — two fundamentally different answers</h3>
+  <div class="two-col">
+    <div class="col-f">
+      <div class="col-head">Frequentist</div>
+      <ul>
+        <li>Data is random; parameters are fixed</li>
+        <li>Probability = long-run frequency</li>
+        <li>Tests P(data | H₀)</li>
+        <li>Produces: p-values, CIs, reject/fail-to-reject</li>
+        <li>Requires imagining repeated experiments</li>
+        <li>Needs power analysis &amp; effect sizes</li>
+      </ul>
+    </div>
+    <div class="col-b">
+      <div class="col-head">Bayesian</div>
+      <ul>
+        <li>Parameters have distributions</li>
+        <li>Probability = degree of belief</li>
+        <li>Computes P(H | data)</li>
+        <li>Produces: posteriors, credible intervals, BFs</li>
+        <li>Works on the data you actually have</li>
+        <li>Requires prior specification</li>
+      </ul>
+    </div>
+  </div>
+  <div class="kc" style="margin-top:1rem">
+    <div class="kc-title">Why It Matters for Music Research</div>
+    When we say "Bach preferred authentic cadences," we're making a claim about P(hypothesis) — a Bayesian statement. Frequentist p-values can't directly support that. They only tell you whether the data would be unusual <em>if the null were true</em>.
+  </div>
+</div>
+</div>
+
+<!-- ══ 07b BETA UPDATE BRIDGE ════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="s7b">
+<div class="body scroll">
+  <div class="tag">Module 02 · The Update Rule</div>
+  <h2>How the Beta Update Works</h2>
+  <h3>α and β are just counts — the update rule is addition</h3>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin:0.5rem 0">
+
+    <div style="padding:0.7rem;background:rgba(255,255,255,0.04);border:1px solid rgba(245,240,232,0.1);border-radius:3px">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:rgba(184,134,11,0.8);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.5rem">What α and β mean</div>
+      <p style="font-size:0.82rem;margin:0 0 0.5rem">Think of α as a running tally of <strong style="color:#7aabcf">authentic cadences</strong> — including any pseudo-observations from your prior. β tallies <strong style="color:#e8897a">everything else</strong>.</p>
+      <p style="font-size:0.82rem;margin:0">The prior Beta(2,2) says: <em>"I've effectively seen 2 authentic and 2 non-authentic before we start."</em> That's all.</p>
+    </div>
+
+    <div style="padding:0.7rem;background:rgba(255,255,255,0.04);border:1px solid rgba(245,240,232,0.1);border-radius:3px">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:rgba(184,134,11,0.8);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.5rem">The update rule</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.78rem;line-height:1.9">
+        Observe authentic → α += 1<br>
+        Observe other &nbsp;&nbsp;&nbsp;&nbsp;→ β += 1<br>
+        <span style="color:rgba(245,240,232,0.35);font-size:0.65rem">That's the entire rule.</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- step-by-step tally -->
+  <div style="margin:0.6rem 0 0.5rem">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:rgba(245,240,232,0.4);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.4rem">Step-by-step: starting from Beta(2,2), observing A · A · O · A</div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.4rem;font-family:'IBM Plex Mono',monospace;font-size:0.72rem;text-align:center">
+
+      <div style="padding:0.5rem;background:rgba(255,255,255,0.05);border:1px solid rgba(245,240,232,0.12);border-radius:3px">
+        <div style="font-size:0.58rem;color:rgba(245,240,232,0.35);margin-bottom:0.3rem">START</div>
+        <div style="color:rgba(245,240,232,0.5);font-size:0.62rem">Prior</div>
+        <div style="margin:0.3rem 0;font-size:0.85rem"><span style="color:#7aabcf">α=2</span> · <span style="color:#e8897a">β=2</span></div>
+        <div style="font-size:0.65rem;color:rgba(184,134,11,0.7)">Beta(2,2)</div>
+        <div style="font-size:0.62rem;color:rgba(245,240,232,0.3);margin-top:0.2rem">mean = 0.50</div>
+      </div>
+
+      <div style="padding:0.5rem;background:rgba(44,95,138,0.15);border:1px solid rgba(44,95,138,0.4);border-radius:3px">
+        <div style="font-size:0.58rem;color:rgba(122,171,207,0.7);margin-bottom:0.3rem">obs 1: <strong style="color:#7aabcf">A</strong></div>
+        <div style="color:rgba(245,240,232,0.5);font-size:0.62rem">α += 1</div>
+        <div style="margin:0.3rem 0;font-size:0.85rem"><span style="color:#7aabcf">α=3</span> · <span style="color:#e8897a">β=2</span></div>
+        <div style="font-size:0.65rem;color:rgba(184,134,11,0.7)">Beta(3,2)</div>
+        <div style="font-size:0.62rem;color:rgba(245,240,232,0.3);margin-top:0.2rem">mean = 0.60</div>
+      </div>
+
+      <div style="padding:0.5rem;background:rgba(44,95,138,0.15);border:1px solid rgba(44,95,138,0.4);border-radius:3px">
+        <div style="font-size:0.58rem;color:rgba(122,171,207,0.7);margin-bottom:0.3rem">obs 2: <strong style="color:#7aabcf">A</strong></div>
+        <div style="color:rgba(245,240,232,0.5);font-size:0.62rem">α += 1</div>
+        <div style="margin:0.3rem 0;font-size:0.85rem"><span style="color:#7aabcf">α=4</span> · <span style="color:#e8897a">β=2</span></div>
+        <div style="font-size:0.65rem;color:rgba(184,134,11,0.7)">Beta(4,2)</div>
+        <div style="font-size:0.62rem;color:rgba(245,240,232,0.3);margin-top:0.2rem">mean = 0.67</div>
+      </div>
+
+      <div style="padding:0.5rem;background:rgba(200,75,47,0.12);border:1px solid rgba(200,75,47,0.35);border-radius:3px">
+        <div style="font-size:0.58rem;color:rgba(232,137,122,0.7);margin-bottom:0.3rem">obs 3: <strong style="color:#e8897a">O</strong></div>
+        <div style="color:rgba(245,240,232,0.5);font-size:0.62rem">β += 1</div>
+        <div style="margin:0.3rem 0;font-size:0.85rem"><span style="color:#7aabcf">α=4</span> · <span style="color:#e8897a">β=3</span></div>
+        <div style="font-size:0.65rem;color:rgba(184,134,11,0.7)">Beta(4,3)</div>
+        <div style="font-size:0.62rem;color:rgba(245,240,232,0.3);margin-top:0.2rem">mean = 0.57</div>
+      </div>
+
+      <div style="padding:0.5rem;background:rgba(44,95,138,0.15);border:1px solid rgba(44,95,138,0.4);border-radius:3px">
+        <div style="font-size:0.58rem;color:rgba(122,171,207,0.7);margin-bottom:0.3rem">obs 4: <strong style="color:#7aabcf">A</strong></div>
+        <div style="color:rgba(245,240,232,0.5);font-size:0.62rem">α += 1</div>
+        <div style="margin:0.3rem 0;font-size:0.85rem"><span style="color:#7aabcf">α=5</span> · <span style="color:#e8897a">β=3</span></div>
+        <div style="font-size:0.65rem;color:rgba(184,134,11,0.7)">Beta(5,3)</div>
+        <div style="font-size:0.62rem;color:rgba(245,240,232,0.3);margin-top:0.2rem">mean = 0.63</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- generalised rule + Bach link -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-top:0.5rem">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.72rem;padding:0.65rem;background:rgba(255,255,255,0.04);border-left:3px solid rgba(184,134,11,0.5);line-height:2">
+      <span style="color:rgba(184,134,11,0.7);font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:0.3rem">General rule (n observations, k authentic)</span>
+      Prior Beta(α, β)<br>
+      <span style="color:#7aabcf">α_post = α + k</span><br>
+      <span style="color:#e8897a">β_post = β + (n − k)</span><br>
+      Mean = α_post / (α_post + β_post)
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.72rem;padding:0.65rem;background:rgba(200,75,47,0.06);border-left:3px solid rgba(200,75,47,0.4);line-height:2">
+      <span style="color:rgba(200,75,47,0.7);font-size:0.6rem;text-transform:uppercase;letter-spacing:0.08em;display:block;margin-bottom:0.3rem">Applied to the Bach example →</span>
+      Prior Beta(2, 2)<br>
+      <span style="color:#7aabcf">α_post = 2 + 32 = 34</span><br>
+      <span style="color:#e8897a">β_post = 2 + 8 &nbsp;= 10</span><br>
+      Mean = 34 / 44 ≈ 0.77
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══ 08 CADENTIAL PREFERENCE ══════════════════════════════════════════ -->
+<div class="slide bg-paper" id="s8">
+<div class="body scroll">
+  <div class="tag">Module 02 · Example 1</div>
+  <h2>Do Baroque Composers Prefer Authentic Cadences?</h2>
+  <h3>40 cadences from a Bach chorale: 32 authentic, 8 other</h3>
+  <div class="two-col">
+    <div class="col-f">
+      <div class="col-head">Frequentist</div>
+      <p>Binomial test against H₀: p = 0.5</p>
+      <div class="formula" style="font-size:0.8rem">
+        H₀: p = 0.5, n=40, k=32<br>
+        <span class="blu">p-value ≈ 0.0008</span> → Reject H₀
+      </div>
+      <p style="font-size:0.8rem;color:var(--muted)"><em>But what does rejecting H₀ tell us about Bach's actual preference rate?</em></p>
+    </div>
+    <div class="col-b">
+      <div class="col-head">Bayesian</div>
+      <p>Model p as unknown. Prior Beta(2,2), update.</p>
+      <div class="formula" style="background:rgba(200,75,47,0.06);border-color:var(--accent);font-size:0.78rem">
+        Prior: Beta(2,2)<br>
+        Data: k=32, n=40 → Posterior: Beta(2+32, 2+8) = <strong>Beta(34,10)</strong><br>
+        <span class="hl">E[p | data] = 34/(34+10) ≈ 0.773</span><br><br>
+        <span style="color:rgba(200,75,47,0.6);font-size:0.68rem;letter-spacing:0.08em;text-transform:uppercase">95% Credible Interval</span><br>
+        Find θ<sub>lo</sub>, θ<sub>hi</sub> such that P(θ<sub>lo</sub> &lt; p &lt; θ<sub>hi</sub> | data) = 0.95<br>
+        <span style="font-size:0.72rem;color:rgba(26,18,8,0.55)">i.e. 2.5th and 97.5th percentiles of Beta(34,10)</span><br>
+        <span style="font-size:0.72rem;color:rgba(26,18,8,0.55)">→ solved numerically via inverse incomplete Beta function</span><br>
+        <span class="hl">[0.63, 0.89]</span>
+      </div>
+      <div style="margin-top:0.5rem;padding:0.45rem 0.6rem;background:rgba(200,75,47,0.05);border-left:2px solid rgba(200,75,47,0.3);font-family:'IBM Plex Mono',monospace;font-size:0.62rem;color:rgba(26,18,8,0.5);line-height:1.6">
+        Unlike a frequentist CI, this interval makes a direct probability statement: there is a 95% posterior probability that Bach's true rate lies in [0.63, 0.89]. No repeated-sampling interpretation required.
+      </div>
+      <p style="font-size:0.8rem;color:var(--muted)"><em>"Bach uses authentic cadences ~77% of the time."</em></p>
+    </div>
+  </div>
+  <div class="kc">
+    <div class="kc-title">The Key Difference</div>
+    p-value = P(data | H₀). Posterior = P(H | data). The latter is what music researchers actually want to know.
+  </div>
+</div>
+</div>
+
+<!-- ══ 09 MAJOR VS MINOR ═════════════════════════════════════════════════ -->
+<div class="slide bg-paper" id="s9">
+<div class="body scroll">
+  <div class="tag">Module 02 · Example 2</div>
+  <h2>Are Minor-Key Pieces Rated as Sadder?</h2>
+  <h3>60 participants: major 8/30 sad, minor 22/30 sad</h3>
+  <div class="two-col">
+    <div class="col-f">
+      <div class="col-head">Frequentist</div>
+      <div class="formula" style="font-size:0.8rem">
+        χ²(1) = 12.27, p = 0.0005<br>
+        Cramér's V = 0.45<br>
+        <span class="blu">Significant association ✓</span>
+      </div>
+      <p style="font-size:0.8rem;color:var(--muted)">But the p-value doesn't tell us how <em>probable</em> it is that minor is sadder.</p>
+    </div>
+    <div class="col-b">
+      <div class="col-head">Bayesian</div>
+      <div class="formula" style="background:rgba(200,75,47,0.06);border-color:var(--accent);font-size:0.8rem">
+        p_major | data ~ Beta(9,23)<br>
+        p_minor | data ~ Beta(23,9)<br>
+        <span class="hl">P(p_minor &gt; p_major | data) ≈ 0.9997</span>
+      </div>
+      <p style="font-size:0.8rem;color:var(--muted)"><em>"99.97% posterior probability minor is rated sadder."</em></p>
+    </div>
+  </div>
+  <div class="kc">
+    <div class="kc-title">Direct Probability Statement</div>
+    This is what listeners, performers, and teachers actually want to know — and it's only expressible in Bayesian terms. A p-value can't say "there's a 99.97% chance minor is sadder."
+  </div>
+  <p style="font-size:0.78rem;color:var(--muted);margin-top:0.75rem;font-style:italic">→ But wait: we used flat priors Beta(1,1) for both conditions — as if we had no prior knowledge. Is that realistic? Next slide explores what happens when we use what the literature actually tells us.</p>
+</div>
+</div>
+
+<!-- ══ 09b INFORMED PRIORS ══════════════════════════════════════════════ -->
+<div class="slide bg-paper" id="s9b">
+<div class="body scroll">
+  <div class="tag">Module 02 · Example 2 continued</div>
+  <h2>What If We Use Informed Priors?</h2>
+  <h3>Encoding Hevner (1935) and Kastner &amp; Crowder (1990) before seeing the data</h3>
+  <p>Decades of music psychology tell us minor keys are consistently rated sadder and major keys happier. Using the same flat Beta(1,1) for both conditions pretends we don't know this. Let's encode what we actually know:</p>
+  <div class="two-col" style="margin-bottom:0.75rem">
+    <div class="col-f">
+      <div class="col-head">Flat Priors (previous slide)</div>
+      <div class="formula" style="font-size:0.78rem">
+        Prior major: Beta(1,1) → mean = 0.50<br>
+        Prior minor: Beta(1,1) → mean = 0.50<br><br>
+        Posterior major: Beta(9,23) → mean = 0.28<br>
+        Posterior minor: Beta(23,9) → mean = 0.72<br>
+        <span class="blu">P(minor sadder | data) ≈ 0.9997</span>
+      </div>
+      <p style="font-size:0.78rem;color:var(--muted)">"I have no idea going in." Honest if you're new to the field — unrealistic if you've read Hevner.</p>
+    </div>
+    <div class="col-b">
+      <div class="col-head">Informed Priors (literature-based)</div>
+      <div class="formula" style="background:rgba(200,75,47,0.06);border-color:var(--accent);font-size:0.78rem">
+        Prior major: Beta(2,6) → mean = 0.25<br>
+        Prior minor: Beta(6,4) → mean = 0.60<br><br>
+        Posterior major: Beta(10,28) → mean = 0.26<br>
+        Posterior minor: Beta(28,12) → mean = 0.70<br>
+        <span class="hl">P(minor sadder | data) ≈ 0.9999</span>
+      </div>
+      <p style="font-size:0.78rem;color:var(--muted)">"Prior research says minor skews sad, major skews happy." The prior encodes real knowledge.</p>
+    </div>
+  </div>
+  <div class="kc">
+    <div class="kc-title">The Key Lesson: Data Overwhelms Weak Priors</div>
+    With n=30 per condition, both prior choices lead to nearly identical posteriors and the same substantive conclusion. The informed prior shifts the means only slightly (0.28→0.26 for major, 0.72→0.70 for minor) and nudges the probability from 0.9997 to 0.9999. <strong>When you have enough data, reasonable prior choices don't matter much.</strong> This is one of the most reassuring features of Bayesian analysis — and a direct answer to the "your prior is arbitrary" reviewer objection.
+  </div>
+  <div style="margin-top:0.75rem;padding:0.85rem 1.1rem;background:rgba(184,134,11,0.05);border:1px solid rgba(184,134,11,0.2);font-size:0.83rem">
+    <span style="font-family:'IBM Plex Mono',monospace;font-size:0.58rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold)">When priors DO matter</span><br>
+    <span style="color:var(--muted)">Priors have real influence when n is small (e.g. n=5 per condition), when effects are subtle, or when the prior is very strong relative to the data. This is why sensitivity analysis — showing results across a range of priors — is best practice in Bayesian reporting.</span>
+  </div>
+</div>
+</div>
+
+<!-- ══ 10 PITCH MEMORY ═══════════════════════════════════════════════════ -->
+<div class="slide bg-paper" id="s10">
+<div class="body full scroll" style="padding-top:2.5rem">
+  <div class="tag">Module 02 · Example 3</div>
+  <h2>Do Musicians Recall Pitch Better?</h2>
+  <h3>Musicians: 14/20 correct · Non-musicians: 9/20 correct</h3>
+
+  <div class="two-col" style="margin-bottom:0.75rem">
+    <div class="col-f">
+      <div class="col-head">Frequentist (small n problem)</div>
+      <div class="formula" style="font-size:0.78rem">
+        Two-proportion z-test<br>
+        z = 1.89, <span class="blu">p = 0.059</span><br>
+        → Fail to reject H₀ at α=.05<br>
+        95% CI (difference): <span class="blu">[−0.01, 0.51]</span><br>
+        <small style="color:var(--muted)">CI crosses zero → "inconclusive" by frequentist standard</small>
+      </div>
+    </div>
+    <div class="col-b">
+      <div class="col-head">Bayesian (prior from literature)</div>
+      <div class="formula" style="background:rgba(200,75,47,0.06);border-color:var(--accent);font-size:0.78rem">
+        Prior musicians: <span class="hl">Beta(3,2)</span> → mean = 0.60<br>
+        Prior non-musicians: Beta(1,1) → mean = 0.50<br>
+        Posterior musicians: Beta(17,8) → mean = 0.68<br>
+        Posterior non-musicians: Beta(11,13) → mean = 0.46<br>
+        95% CrI musicians: <span class="hl">[0.46, 0.85]</span><br>
+        95% CrI non-musicians: <span class="hl">[0.26, 0.67]</span><br>
+        <span class="hl">P(musicians better | data) ≈ 0.91</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Literature note -->
+  <div style="padding:0.7rem 1rem;background:rgba(184,134,11,0.05);border-left:3px solid var(--gold);font-size:0.8rem;margin-bottom:0.75rem">
+    <span style="font-family:'IBM Plex Mono',monospace;font-size:0.57rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold)">Prior source</span><br>
+    <span style="color:var(--muted)">The prior Beta(3,2) for musicians encodes a weak expectation of above-chance performance (~60%), consistent with Sloboda (1985) on musicians' superior tonal encoding and Krumhansl &amp; Shepard (1979) on trained listeners' key-profile sensitivity. It contributes the equivalent of 5 pseudo-observations — modest enough to be overridden by a moderate dataset.</span>
+  </div>
+
+  <!-- Live posterior density visualization -->
+  <div style="background:var(--ink);padding:1rem 1.25rem;margin-bottom:0.75rem">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.58rem;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:0.5rem">Posterior Distributions — note the wide, overlapping credible intervals</div>
+    <canvas id="s10-canvas" style="height:130px;background:rgba(255,255,255,0.02)"></canvas>
+    <div style="display:flex;gap:1.5rem;margin-top:0.5rem;font-family:'IBM Plex Mono',monospace;font-size:0.65rem">
+      <span style="color:#7aabcf">■ Musicians Beta(17,8) — 95% CrI [0.46, 0.85]</span>
+      <span style="color:rgba(245,240,232,0.4)">■ Non-musicians Beta(11,13) — 95% CrI [0.26, 0.67]</span>
+      <span style="color:rgba(245,240,232,0.2)">shaded = 95% credible interval</span>
+    </div>
+  </div>
+
+  <div class="kc">
+    <div class="kc-title">The Small-N Problem</div>
+    p=0.059 → frequentist says "not significant." But the Bayesian posteriors tell a richer story: the distributions <em>overlap substantially</em> (hence only 91% probability, not 99%), and both CrIs are wide — honestly reflecting that n=20 per group can't tightly constrain a proportion. This is the right conclusion from small data, not a false negative.
+  </div>
+</div>
+</div>
+
+<!-- ══ 11 THE THEOREM ════════════════════════════════════════════════════ -->
+<div class="slide bg-paper staff" id="s11">
+<div class="body scroll">
+  <div class="tag">Module 03 · Bayes' Theorem</div>
+  <h2>Bayes' Theorem</h2>
+  <h3>Breaking down the formula through music</h3>
+  <div class="formula" style="font-size:1.05rem;text-align:center;padding:1.1rem">
+    P(<span class="hl">H</span> | D) = [ P(<span class="grn">D</span> | <span class="hl">H</span>) × P(<span class="gld">H</span>) ] / P(<span class="blu">D</span>)
+  </div>
+  <div class="two-col" style="margin-top:0.5rem">
+    <p style="font-size:0.86rem"><strong class="red">P(H | D)</strong> — <em>Posterior</em><br>Updated belief after data.<br><small class="muted">e.g. "How likely is this piece in A major, given these note frequencies?"</small></p>
+    <p style="font-size:0.86rem"><strong class="grn">P(D | H)</strong> — <em>Likelihood</em><br>Probability of data if H were true.<br><small class="muted">e.g. "If A major, how likely is F# to be frequent?"</small></p>
+    <p style="font-size:0.86rem"><strong class="gold">P(H)</strong> — <em>Prior</em><br>Belief before seeing data.<br><small class="muted">e.g. "Base rate of major keys in common practice: ~60%"</small></p>
+    <p style="font-size:0.86rem"><strong class="blue">P(D)</strong> — <em>Marginal Likelihood</em><br>How likely is this data across all hypotheses?<br><small class="muted">P(D|H)·P(H) + P(D|¬H)·P(¬H)</small></p>
+  </div>
+</div>
+</div>
+
+<!-- ══ 12 KEY DETECTION WIDGET ═══════════════════════════════════════════ -->
+<div class="slide bg-dark" id="s12">
+<div class="body full scroll">
+  <div class="tag">Module 03 · Interactive Widget</div>
+  <h2>Musical Key Detection via Bayes</h2>
+  <p>Click notes present in an excerpt. Posteriors update across all 24 keys using Krumhansl-Kessler profiles as likelihoods.</p>
+  <div class="widget">
+    <div class="widget-tag">Widget 01 · Key Detection</div>
+    <h4>Pitch Class Selector</h4>
+    <p>Click to toggle notes present in the excerpt:</p>
+    <div class="pitch-grid" id="kd-grid"></div>
+    <div class="result-box" style="margin-top:0.75rem">
+      <div class="r-label">Top Key Candidates (Posterior Probability)</div>
+      <div id="kd-bars" style="margin-top:0.5rem"><span style="color:rgba(245,240,232,0.35);font-size:0.8rem">Select notes above to begin analysis</span></div>
+      <div style="font-size:0.7rem;color:rgba(245,240,232,0.38);margin-top:0.5rem" id="kd-note"></div>
+    </div>
+    <button class="btn sec" onclick="kdReset()" style="margin-top:0.75rem">Reset</button>
+  </div>
+</div>
+</div>
+
+<!-- ══ 13 MELODY RECOGNITION ════════════════════════════════════════════ -->
+<div class="slide bg-cream" id="s13">
+<div class="body scroll">
+  <div class="tag">Module 04 · Exercise 1</div>
+  <h2>Melody Recognition</h2>
+  <h3>Is "I recognize this" reliable evidence of familiarity?</h3>
+  <p>A participant says "I recognize this melody." Known rates: true recognition 85%, false alarm 15%. Base rate of truly familiar melodies in the set: <strong>30%</strong>.</p>
+  <div class="formula">
+    P(FM) = 0.30, P(NF) = 0.70<br>
+    P("recognize" | FM) = 0.85<br>
+    P("recognize" | NF) = 0.15<br><br>
+    P("recognize") = 0.85×0.30 + 0.15×0.70 = 0.360<br><br>
+    <span class="hl">P(FM | "recognize") = 0.255 / 0.360 ≈ 0.708</span>
+  </div>
+  <div class="kc">
+    <div class="kc-title">Implication</div>
+    Even when a listener says they recognize a melody, there's a <strong>29% chance it's false recognition</strong> — because truly familiar items are rare. Self-reported recognition alone is insufficient evidence. The base rate dominates in low-prevalence situations.
+  </div>
+</div>
+</div>
+
+<!-- ══ 14 POST-SKIP REVERSAL ════════════════════════════════════════════ -->
+<div class="slide bg-cream" id="s14">
+<div class="body scroll">
+  <div class="tag">Module 04 · Exercise 2</div>
+  <h2>Huron's Post-Skip Reversal</h2>
+  <h3>Melodic expectation meets stylistic context</h3>
+  <p>A corpus of 500 folk melodies: after a large ascending leap (&gt;P5), the next note descends <strong>78%</strong> of the time. But this piece looks like a military march (base rate: 40% post-leap ascent or continuation).</p>
+  <div class="formula">
+    P(descend | corpus) = 0.78<br>
+    P(descend | march style) = 0.60<br>
+    Prior P(march style) = 0.25<br><br>
+    Mixed prior = 0.25×0.60 + 0.75×0.78<br>
+    = 0.15 + 0.585 = <span class="hl">0.735</span>
+  </div>
+  <div class="kc">
+    <div class="kc-title">Bayesian Melodic Expectation</div>
+    73.5% confidence in descending motion — lower than the raw corpus rate (78%) because stylistic context adjusts the prior. Bayesian reasoning combines corpus statistics with contextual knowledge formally, mirroring how expert listeners actually process expectations.
+  </div>
+</div>
+</div>
+
+<!-- ══ 15 COMPOSER ATTRIBUTION ══════════════════════════════════════════ -->
+<div class="slide bg-cream" id="s15">
+<div class="body scroll">
+  <div class="tag">Module 04 · Exercise 3</div>
+  <h2>Composer Attribution</h2>
+  <h3>Haydn or Mozart? Sequential updating over two features</h3>
+  <p>A newly discovered piece has <em>fp</em> dynamic markings. Haydn uses fp: 40%; Mozart: 65%. Prior: 50/50.</p>
+  <div class="formula" style="font-size:0.82rem">
+    P(Haydn | fp) = (0.40×0.50) / (0.40×0.50 + 0.65×0.50) = <span class="hl">0.381</span><br>
+    P(Mozart | fp) = <span class="hl">0.619</span>
+  </div>
+  <p>Now add Sturm und Drang chromaticism (Haydn: 70%, Mozart: 30%). Update again using the posterior above as the new prior:</p>
+  <div class="formula" style="font-size:0.82rem">
+    P(SuD) = 0.70×0.381 + 0.30×0.619 = 0.453<br>
+    P(Haydn | fp, SuD) = (0.70×0.381) / 0.453 = <span class="hl">0.588</span>
+  </div>
+  <div class="kc">
+    <div class="kc-title">Sequential Updating</div>
+    fp markings tip toward Mozart; SuD chromaticism tips back toward Haydn. Each feature is a Bayesian update — today's posterior is tomorrow's prior. This is formally equivalent to adding both features simultaneously.
+  </div>
+</div>
+</div>
+
+<!-- ══ 16 JAZZ CHORD PREDICTION ══════════════════════════════════════════ -->
+<div class="slide bg-cream" id="s16">
+<div class="body scroll">
+  <div class="tag">Module 04 · Exercise 4</div>
+  <h2>Jazz Improvisation</h2>
+  <h3>Predicting the next chord under harmonic ambiguity</h3>
+  <p>An improviser hears an ambiguous chord — 60% likely a ii, 40% likely a ♭II (tritone sub). From a corpus of ii-V-I standards (1940–1960):</p>
+  <ul>
+    <li>After ii: V follows 75%, I follows 10%, other 15%</li>
+    <li>After ♭II: V follows 55%, I follows 25%, other 20%</li>
+  </ul>
+  <div class="formula">
+    P(V | ii) = 0.75,  P(V | ♭II) = 0.55<br>
+    P(ii) = 0.60,      P(♭II) = 0.40<br><br>
+    P(V next) = 0.75×0.60 + 0.55×0.40<br>
+    = 0.450 + 0.220 = <span class="hl">0.670</span>
+  </div>
+  <div class="kc">
+    <div class="kc-title">Mixture Models in Improvisation</div>
+    The improviser should plan for V with 67% confidence — a Bayesian mixture model under harmonic uncertainty. This underlies computational approaches to jazz chord prediction and automatic chord recognition.
+  </div>
+</div>
+</div>
+
+<!-- ══ 17 SEQUENTIAL UPDATE WIDGET ══════════════════════════════════════ -->
+<div class="slide bg-dark" id="s17">
+<div class="body full scroll">
+  <div class="tag">Module 05 · Interactive Widget</div>
+  <h2>Sequential Belief Updating</h2>
+  <p>Click cadence types one at a time. The posterior updates with each observation. Adjust the prior slider first to encode what you know before starting.</p>
+  <div class="widget">
+    <div class="widget-tag">Widget 02 · Cadence Updater</div>
+    <div class="sl-row">
+      <div class="sl-label">Prior: P(authentic) =</div>
+      <input type="range" id="upd-prior" min="5" max="95" value="50" oninput="updPriorChange()">
+      <div class="sl-val" id="upd-prior-val">0.50</div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" onclick="updAdd('A')">+ Authentic</button>
+      <button class="btn sec" onclick="updAdd('N')">+ Other</button>
+      <button class="btn sec" onclick="updReset()">Reset</button>
+    </div>
+    <div class="coin-row" id="upd-coins"></div>
+    <div class="result-box">
+      <div class="r-label">Posterior P(authentic | observations)</div>
+      <div style="display:flex;align-items:baseline;gap:0.75rem;flex-wrap:wrap">
+        <div class="r-big" id="upd-post">0.50</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:0.68rem;color:rgba(44,95,138,0.9)" id="upd-cri">95% CrI: —</div>
+      </div>
+      <div class="prog-track" style="margin-top:0.4rem"><div class="prog-fill" id="upd-bar" style="width:50%"></div></div>
+      <div style="font-size:0.7rem;color:rgba(245,240,232,0.38);margin-top:0.35rem" id="upd-stats">Observations: 0</div>
+    </div>
+    <canvas id="upd-canvas" style="height:130px;margin-top:0.75rem;background:rgba(255,255,255,0.03)"></canvas>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.58rem;color:rgba(245,240,232,0.3);margin-top:0.3rem">
+      <span style="display:inline-block;width:28px;height:3px;background:var(--accent);vertical-align:middle;margin-right:5px"></span>posterior mean
+      <span style="display:inline-block;width:28px;height:8px;background:rgba(44,95,138,0.35);vertical-align:middle;margin:0 5px 0 14px;border:1px solid rgba(44,95,138,0.5)"></span>95% credible interval — narrows as evidence accumulates
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 18 BETA-BINOMIAL ══════════════════════════════════════════════════ -->
+<div class="slide bg-paper" id="s18">
+<div class="body scroll">
+  <div class="tag">Module 05 · The Model</div>
+  <h2>The Beta-Binomial Model</h2>
+  <h3>The math behind sequential updating</h3>
+  <p>When observations are binary (authentic / not authentic), the <strong>conjugate prior</strong> is the Beta distribution, making updating trivially simple:</p>
+  <div class="formula">
+    Prior:     Beta(α, β)<br>
+    Data:      k successes out of n trials<br>
+    Posterior: Beta(α + k, β + n − k)<br><br>
+    E[p | data] = (α + k) / (α + β + n)
+  </div>
+  <div class="two-col" style="margin-top:0.75rem">
+    <div class="card blue">
+      <p style="font-size:0.85rem;margin:0"><strong>Flat prior:</strong> Beta(1,1) — "I have no idea." Posterior mean = k/n, identical to the raw proportion.</p>
+    </div>
+    <div class="card">
+      <p style="font-size:0.85rem;margin:0"><strong>Informative prior:</strong> Beta(8,2) — "I expect ~80% authentic." Pulls the posterior toward 0.80 until enough data accumulates to override it.</p>
+    </div>
+  </div>
+  <div class="kc" style="margin-top:0.75rem">
+    <div class="kc-title">Conjugacy</div>
+    When prior and posterior belong to the same distribution family, we call this a <em>conjugate prior</em>. The Beta-Binomial is the canonical example. Other useful pairs: Dirichlet-Multinomial (interval distributions), Normal-Normal (continuous measures like reaction time).
+  </div>
+</div>
+</div>
+
+<!-- ══ 19 CORPUS INTERVALLIC WIDGET ════════════════════════════════════ -->
+<div class="slide bg-dark" id="s19">
+<div class="body full scroll">
+  <div class="tag">Module 06 · Corpus Studies Widget</div>
+  <h2>Intervallic Preference Across Corpora</h2>
+  <p>Prior from Huron (2006) folk melody corpus. Adjust sliders to represent new corpus findings, then update the posterior.</p>
+  <div class="widget" id="corpus-widget">
+    <div class="widget-tag">Widget 03 · Dirichlet-Multinomial Update</div>
+    <p style="font-size:0.7rem;color:var(--gold);margin-bottom:0.35rem">Prior (Huron 2006 folk melodies):</p>
+    <div id="cp-prior-bars" class="bar-chart"></div>
+    <div style="height:1px;background:rgba(245,240,232,0.08);margin:0.85rem 0"></div>
+    <p style="font-size:0.7rem;color:var(--gold);margin-bottom:0.35rem">New corpus — adjust sliders:</p>
+    <div id="cp-sliders"></div>
+    <div class="sl-row" style="margin-top:0.7rem;padding-top:0.6rem;border-top:1px solid rgba(245,240,232,0.08)">
+      <div class="sl-label" style="min-width:65px;font-size:0.65rem;color:var(--gold)">Corpus n</div>
+      <input type="range" id="cp-n" min="10" max="500" value="50" step="10" oninput="document.getElementById('cp-n-val').textContent=this.value+' obs'">
+      <div class="sl-val" id="cp-n-val" style="color:var(--gold)">50 obs</div>
+    </div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:rgba(245,240,232,0.35);margin-left:65px;margin-top:2px">← drag left to see uncertainty grow, right to see it shrink</div>
+    <button class="btn" onclick="cpUpdate()" style="margin-top:0.6rem">Update Posterior</button>
+    <div id="cp-post-section" style="display:none">
+      <div style="height:1px;background:rgba(245,240,232,0.08);margin:0.75rem 0"></div>
+      <div style="display:flex;align-items:center;gap:1.2rem;margin-bottom:0.5rem;flex-wrap:wrap">
+        <p style="font-size:0.7rem;color:var(--gold);margin:0">Posterior (combined):</p>
+        <div style="display:flex;align-items:center;gap:1rem;font-family:'IBM Plex Mono',monospace;font-size:0.58rem;color:rgba(245,240,232,0.4)">
+          <span>▬ point estimate &nbsp;|&nbsp; shaded region = 95% CrI &nbsp;|&nbsp; ticks = CrI bounds</span>
+        </div>
+      </div>
+      <div id="cp-post-bars" class="bar-chart"></div>
+      <div style="margin-top:0.6rem;padding:0.5rem 0.75rem;background:rgba(184,134,11,0.06);border-left:2px solid rgba(184,134,11,0.4);font-size:0.67rem;color:rgba(245,240,232,0.45);font-family:'IBM Plex Mono',monospace;line-height:1.5">
+        Wide shading = high uncertainty (few observations). Narrow shading = well-constrained. The shaded region shows the plausible range for the true rate — not just the point estimate.
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 20 CORPUS CLAIMS ══════════════════════════════════════════════════ -->
+<div class="slide bg-paper" id="s20">
+<div class="body scroll">
+  <div class="tag">Module 06 · Corpus Studies</div>
+  <h2>Bayesian vs. Frequentist Corpus Claims</h2>
+  <h3>"Stepwise motion is preferred in tonal melodies"</h3>
+  <div class="two-col">
+    <div class="col-f">
+      <div class="col-head">Frequentist Corpus Study</div>
+      <ul>
+        <li>Count intervals, report proportions</li>
+        <li>Test against null (uniform distribution)</li>
+        <li>Each corpus treated independently</li>
+        <li>Large corpora always "significant" — even 0.3% effects</li>
+        <li>Can't say "90% confident stepwise &gt; 40%"</li>
+      </ul>
+    </div>
+    <div class="col-b">
+      <div class="col-head">Bayesian Corpus Study</div>
+      <ul>
+        <li>Dirichlet-Multinomial model</li>
+        <li>Prior = prior literature formally encoded</li>
+        <li>Evidence accumulates across corpora</li>
+        <li>Small corpora contribute without overwhelming</li>
+        <li><em>"P(stepwise &gt; 40%) = 0.95"</em> — direct claim</li>
+      </ul>
+    </div>
+  </div>
+  <div class="kc" style="margin-top:1rem">
+    <div class="kc-title">Your Literature Review Is Your Prior</div>
+    Bayesian statistics gives you a formal framework to make this explicit: "Based on studies A, B, C, I set prior Dirichlet(α). My corpus updates this to…" The next researcher uses your posterior as their prior. Science accumulates.
+  </div>
+</div>
+</div>
+
+<!-- ══ 21 READY TO ADVANCE ═══════════════════════════════════════════════ -->
+<div class="slide bg-cream" id="s21">
+<div class="body scroll">
+  <div class="tag">Module 08 · Music Education · Exercise 8.1</div>
+  <h2>Is This Student Ready to Advance?</h2>
+  <h3>A studio teacher's diagnostic problem</h3>
+  <p>True-ready students pass a readiness checklist 90% of the time. Not-yet-ready students pass 40% of the time. Base rate of truly ready at this stage: <strong>35%</strong>. Student passes the checklist.</p>
+  <p style="font-size:0.72rem;color:var(--muted)">Likelihood values adapted from Fiske (1977) — <em>Sequential Assessment in Music Learning</em>; base rate from McPherson &amp; Zimmerman (2011) — <em>Self-regulation of musical learning</em>.</p>
+  <div id="rta-q">
+    <p class="mono muted" style="font-size:0.78rem">What is P(truly ready | passed checklist)? Guess before calculating:</p>
+    <div class="btn-row">
+      <button class="btn" onclick="rtaReveal('low')">Low (&lt;50%)</button>
+      <button class="btn" onclick="rtaReveal('mid')">Medium (50–75%)</button>
+      <button class="btn" onclick="rtaReveal('high')">High (&gt;75%)</button>
+    </div>
+  </div>
+  <div id="rta-ans" style="display:none">
+    <div class="formula" style="font-size:0.82rem">
+      P(pass) = 0.90×0.35 + 0.40×0.65 = 0.575<br>
+      <span class="hl">P(ready | pass) = (0.90×0.35) / 0.575 ≈ 0.548</span>
+    </div>
+    <div id="rta-fb" class="kc"></div>
+    <p style="margin-top:0.6rem;font-size:0.82rem">→ <em>See next slide</em> to watch a second assessment update this posterior.</p>
+  </div>
+</div>
+</div>
+
+<!-- ══ 21b SEQUENTIAL ASSESSMENT ════════════════════════════════════════ -->
+<div class="slide bg-cream" id="s21b">
+<div class="body scroll">
+  <div class="tag">Module 08 · Music Education · Exercise 8.1 continued</div>
+  <h2>A Second Assessment</h2>
+  <h3>Using the checklist posterior as a new prior</h3>
+  <p>The checklist gave us P(ready) ≈ 0.548. Now the teacher adds a sight-reading test. True-ready students pass sight-reading <strong>70%</strong> of the time; not-yet-ready students pass <strong>20%</strong> of the time. Student passes.</p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.85rem;margin:0.9rem 0">
+    <!-- Step 1 -->
+    <div style="background:rgba(44,95,138,0.07);border:1px solid rgba(44,95,138,0.25);padding:0.75rem;font-size:0.8rem">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:var(--blue);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.4rem">Step 1 — new prior</div>
+      P(ready) = 0.548<br>
+      P(not ready) = 0.452<br>
+      <span style="color:var(--muted);font-size:0.75rem">(yesterday's posterior)</span>
+    </div>
+    <!-- Step 2 -->
+    <div style="background:rgba(44,95,138,0.07);border:1px solid rgba(44,95,138,0.25);padding:0.75rem;font-size:0.8rem">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:var(--blue);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.4rem">Step 2 — likelihoods</div>
+      P(pass SR | ready) = 0.70<br>
+      P(pass SR | not ready) = 0.20
+    </div>
+    <!-- Step 3 -->
+    <div style="background:rgba(44,95,138,0.07);border:1px solid rgba(44,95,138,0.25);padding:0.75rem;font-size:0.8rem">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:var(--blue);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.4rem">Step 3 — marginal P(pass SR)</div>
+      = 0.70 × 0.548<br>
+      + 0.20 × 0.452<br>
+      = 0.3836 + 0.0904<br>
+      = <strong>0.474</strong>
+    </div>
+    <!-- Step 4 -->
+    <div style="background:rgba(61,107,79,0.09);border:1px solid rgba(61,107,79,0.3);padding:0.75rem;font-size:0.8rem">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:var(--green);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.4rem">Step 4 — posterior</div>
+      P(ready | pass SR)<br>
+      = (0.70 × 0.548) / 0.474<br>
+      = 0.3836 / 0.474<br>
+      <span style="font-size:1rem;color:var(--green);font-weight:bold">≈ 0.809</span>
+    </div>
+  </div>
+
+  <div class="kc">
+    <div class="kc-title">From 54.8% to 80.9% with one more test</div>
+    Each independent assessment multiplies the evidence. The key intuition: the second test is more <em>informative</em> than the first because the first already screened out many clearly-not-ready students — the population the second test sees is already enriched. This is why sequential assessment beats a single high-stakes evaluation.
+  </div>
+</div>
+</div>
+
+<!-- ══ 22 PRACTICE TRACKER ═══════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="s22">
+<div class="body full scroll">
+  <div class="tag">Module 08 · Exercise 8.2 · Interactive Widget</div>
+  <h2>Practice Consistency Tracker</h2>
+  <p>Log weekly practice observations. Consistent practicer (CP): 5–7 days/wk. Inconsistent (IP): 1–3 days/wk.</p>
+  <div class="widget">
+    <div class="widget-tag">Widget 05 · Studio Practice Model</div>
+    <div class="sl-row">
+      <div class="sl-label">Prior: P(consistent) =</div>
+      <input type="range" id="prac-prior" min="5" max="95" value="50" oninput="pracPriorChange()">
+      <div class="sl-val" id="prac-prior-val">0.50</div>
+    </div>
+    <div class="btn-row">
+      <button class="btn grn" onclick="pracLog('F')" style="color:#fff">✓ Full week (5+ days)</button>
+      <button class="btn sec" onclick="pracLog('P')">✗ Partial (&lt;5 days)</button>
+      <button class="btn sec" onclick="pracReset()">Reset</button>
+    </div>
+    <div style="display:flex;gap:4px;flex-wrap:wrap;min-height:24px;margin-bottom:0.5rem" id="prac-log"></div>
+    <div class="result-box">
+      <div class="r-label">P(consistent practicer | logs)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-top:0.2rem">
+        <div>Consistent: <span class="r-big" id="prac-cp">0.50</span></div>
+        <div>Inconsistent: <span class="r-big" id="prac-ip" style="color:var(--gold)">0.50</span></div>
+      </div>
+      <div class="prog-track"><div class="prog-fill" id="prac-bar" style="width:50%"></div></div>
+      <div style="font-size:0.7rem;color:rgba(245,240,232,0.38);margin-top:0.3rem" id="prac-stats">Weeks logged: 0</div>
+      <div style="font-size:0.78rem;color:var(--gold);font-style:italic;margin-top:0.45rem" id="prac-advice"></div>
+    </div>
+    <div style="margin-top:0.75rem;padding:0.55rem 0.8rem;background:rgba(184,134,11,0.06);border-left:2px solid rgba(184,134,11,0.35);font-family:'IBM Plex Mono',monospace;font-size:0.62rem;color:rgba(245,240,232,0.45);line-height:1.6">
+      <span style="color:rgba(184,134,11,0.7);font-weight:bold">⚠ point estimate only.</span>
+      This model returns a single number, not a distribution. The true uncertainty is larger than the needle suggests — it depends directly on how well-calibrated the assumed likelihood values (85% / 25%) actually are for <em>this</em> student. Those values are population averages, not measured facts. A model limitation, not a data limitation.
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 23 CONCERT ATTENDANCE ════════════════════════════════════════════ -->
+<div class="slide bg-cream" id="s23">
+<div class="body scroll">
+  <div class="tag">Module 08 · Exercise 8.3</div>
+  <h2>Concert Attendance in K–12</h2>
+  <h3>12 of 40 students came to an optional concert — cause for alarm?</h3>
+  <p>A colleague says: "Only 30% attended — students aren't engaged." But district records show optional concerts historically draw 25–35%.</p>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin:0.75rem 0;font-size:0.78rem">
+
+    <div style="background:rgba(44,95,138,0.07);border:1px solid rgba(44,95,138,0.25);padding:0.65rem">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.58rem;color:var(--blue);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.35rem">Step 1 — encode the prior</div>
+      District records: concerts draw 25–35%, centre ~30%.<br>
+      Encode as <strong>Beta(6, 14)</strong> — like having seen<br>
+      6 attend and 14 not at past concerts.<br>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:0.72rem">E[p] = 6/(6+14) = <strong>0.30</strong> ✓</span><br>
+      <span style="color:var(--muted);font-size:0.72rem">ESS = 20 pseudo-observations</span>
+    </div>
+
+    <div style="background:rgba(44,95,138,0.07);border:1px solid rgba(44,95,138,0.25);padding:0.65rem">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.58rem;color:var(--blue);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.35rem">Step 2 — add the data</div>
+      Observed: 12 attended, 28 did not.<br>
+      Beta-Binomial update rule:<br>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:0.72rem">Beta(6+12, 14+28) = <strong>Beta(18, 42)</strong></span><br>
+      <span style="color:var(--muted);font-size:0.72rem">α counts attendances; β counts absences</span>
+    </div>
+
+    <div style="background:rgba(44,95,138,0.07);border:1px solid rgba(44,95,138,0.25);padding:0.65rem">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.58rem;color:var(--blue);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.35rem">Step 3 — posterior mean</div>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:0.72rem">E[p] = α/(α+β) = 18/60 = <strong>0.300</strong></span><br>
+      <span style="color:var(--muted);font-size:0.72rem">Unchanged — data confirmed the prior exactly</span>
+    </div>
+
+    <div style="background:rgba(61,107,79,0.08);border:1px solid rgba(61,107,79,0.28);padding:0.65rem">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.58rem;color:var(--green);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:0.35rem">Step 4 — credible interval</div>
+      For Beta(18, 42), the 2.5th and 97.5th<br>
+      percentiles (via numerical inverse CDF):<br>
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:0.75rem;color:var(--green)">95% CrI: [0.19, 0.43]</span><br>
+      <span style="color:var(--muted);font-size:0.72rem">No closed form — solved by bisection on the regularised incomplete Beta function</span>
+    </div>
+
+  </div>
+  <div class="kc">
+    <div class="kc-title">Key Insight</div>
+    The data are <em>entirely consistent</em> with the historical baseline. A frequentist test against H₀: p=0.5 gives p≈0.02 — "significant!" — but that null is irrelevant. The Bayesian prior encodes the right baseline and reveals no anomaly exists.
+  </div>
+  <div class="card" style="margin-top:0.75rem">
+    <p style="font-size:0.84rem;margin:0"><strong>Extension:</strong> Of 28 non-attenders, 15 cited a conflict, 13 said uninterested. P(engaged-but-unavailable | "conflict") = (0.90×0.50)/(0.90×0.50+0.30×0.50) = <strong>0.75</strong>. Follow up with them differently than the disengaged group.</p>
+  </div>
+</div>
+</div>
+
+<!-- ══ 24 WRONG NOTE DIAGNOSIS ═══════════════════════════════════════════ -->
+<div class="slide bg-dark" id="s24">
+<div class="body full scroll">
+  <div class="tag">Module 08 · Exercise 8.4 · Interactive Widget</div>
+  <h2>Wrong Note Diagnosis</h2>
+  <p>A beginner plays B♭ instead of B♮ consistently. Four hypotheses. Adjust evidence sliders — posteriors update live.</p>
+  <div class="widget">
+    <div class="widget-tag">Widget 06 · Error Diagnosis</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.85rem;font-size:0.78rem">
+      <div style="padding:0.5rem;border-left:2px solid var(--accent)"><strong style="color:var(--accent)">H1:</strong> Key sig confusion</div>
+      <div style="padding:0.5rem;border-left:2px solid var(--gold)"><strong style="color:var(--gold)">H2:</strong> Muscle memory</div>
+      <div style="padding:0.5rem;border-left:2px solid var(--blue)"><strong style="color:#7aabcf">H3:</strong> Note reading error</div>
+      <div style="padding:0.5rem;border-left:2px solid var(--green)"><strong style="color:#7fc99a">H4:</strong> Technique issue</div>
+    </div>
+    <div class="sl-row"><div class="sl-label" style="min-width:170px">Hesitates at key sig</div>
+      <input type="range" id="dx-e1" min="0" max="10" value="5" oninput="dxUpdate()">
+      <div class="sl-val" id="dx-e1v">5</div></div>
+    <div class="sl-row"><div class="sl-label" style="min-width:170px">Error in fast passages</div>
+      <input type="range" id="dx-e2" min="0" max="10" value="5" oninput="dxUpdate()">
+      <div class="sl-val" id="dx-e2v">5</div></div>
+    <div class="sl-row"><div class="sl-label" style="min-width:170px">Error in new music</div>
+      <input type="range" id="dx-e3" min="0" max="10" value="5" oninput="dxUpdate()">
+      <div class="sl-val" id="dx-e3v">5</div></div>
+    <div class="sl-row"><div class="sl-label" style="min-width:170px">Vanishes when memorized</div>
+      <input type="range" id="dx-e4" min="0" max="10" value="5" oninput="dxUpdate()">
+      <div class="sl-val" id="dx-e4v">5</div></div>
+
+    <!-- live likelihood matrix -->
+    <div style="margin:0.7rem 0 0.5rem">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.58rem;letter-spacing:0.1em;text-transform:uppercase;color:rgba(245,240,232,0.4);margin-bottom:0.35rem">
+        Likelihood matrix — each cell = P(evidence | hypothesis) · updates live
+      </div>
+      <div id="dx-matrix" style="width:100%;overflow-x:auto"></div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:0.58rem;color:rgba(245,240,232,0.3);margin-top:0.3rem">
+        <span style="display:inline-block;width:10px;height:10px;background:rgba(61,107,79,0.7);margin-right:4px;vertical-align:middle"></span>high likelihood
+        <span style="display:inline-block;width:10px;height:10px;background:rgba(200,75,47,0.55);margin:0 4px 0 12px;vertical-align:middle"></span>low likelihood
+        <span style="display:inline-block;width:10px;height:10px;background:rgba(245,240,232,0.12);margin:0 4px 0 12px;vertical-align:middle;border:1px solid rgba(255,255,255,0.15)"></span>neutral
+      </div>
+    </div>
+
+    <div class="result-box" style="margin-top:0.5rem">
+      <div class="r-label">Posterior over hypotheses</div>
+      <div id="dx-bars" class="bar-chart" style="margin-top:0.5rem"></div>
+      <div style="font-size:0.77rem;color:var(--gold);font-style:italic;margin-top:0.5rem" id="dx-advice"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 25 TALENTED STUDENT ═══════════════════════════════════════════════ -->
+<div class="slide bg-cream" id="s25">
+<div class="body scroll">
+  <div class="tag">Module 08 · Exercise 8.5 · Quiz</div>
+  <h2>The "Talented" Student Problem</h2>
+  <h3>How reliable is a teacher's first impression?</h3>
+  <p>A teacher correctly identifies high-aptitude students 80% of the time. Labels average students "talented" 25% of the time. In a typical class, <strong>20% are high-aptitude</strong>. A student is labeled "talented." What is P(truly high-aptitude)?</p>
+  <div id="ts-btns" class="btn-row">
+    <button class="btn blu" onclick="tsReveal('A')">A: ~40%</button>
+    <button class="btn" onclick="tsReveal('B')">B: ~55%</button>
+    <button class="btn grn" onclick="tsReveal('C')" style="color:#fff">C: ~70%</button>
+    <button class="btn sec" onclick="tsReveal('D')">D: ~80%</button>
+  </div>
+  <div id="ts-ans" style="display:none">
+    <div class="formula" style="font-size:0.82rem">
+      P("talented") = 0.80×0.20 + 0.25×0.80 = 0.36<br>
+      <span class="hl">P(high | "talented") = (0.80×0.20) / 0.36 = 0.444</span>
+    </div>
+    <div id="ts-fb" class="kc"></div>
+    <p style="margin-top:0.75rem"><strong>Equity implication:</strong> Most "talented" labels are false positives because high aptitude is rare. Adding a sight-singing test raises posterior to 0.80. First impressions systematically disadvantage quiet, less performatively-confident students.</p>
+  </div>
+</div>
+</div>
+
+<!-- ══ 26 DROPOUT WIDGET ═════════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="s26">
+<div class="body full scroll">
+  <div class="tag">Module 08 · Exercise 8.6 · Interactive Widget</div>
+  <h2>Lesson Persistence Model</h2>
+  <p>Base rate: 60% of students continue past year 1. Adjust the student profile — posterior updates based on research-backed likelihood ratios.</p>
+  <div class="widget">
+    <div class="widget-tag">Widget 07 · Dropout Model</div>
+    <div id="dropout-factors" style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem"></div>
+    <div class="result-box" style="margin-top:0.85rem">
+      <div class="r-label">P(persists to year 2)</div>
+      <div class="r-big" id="do-prob">0.60</div>
+      <div class="prog-track"><div class="prog-fill" id="do-bar" style="width:60%;background:var(--green)"></div></div>
+      <div style="font-size:0.77rem;color:rgba(245,240,232,0.52);margin-top:0.45rem" id="do-interp"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 27 LANGUAGE & CLAIMS ══════════════════════════════════════════════ -->
+<div class="slide bg-paper" id="s27">
+<div class="body scroll">
+  <div class="tag">Module 09 · Reporting · Language</div>
+  <h2>Reporting: Language &amp; Claims</h2>
+  <h3>Never interpret a frequentist result in Bayesian language, or vice versa</h3>
+  <div class="two-col">
+    <div class="col-f">
+      <div class="col-head">Valid Frequentist Statements</div>
+      <ul>
+        <li>"Significant at α=.05 (<em>p</em>=.023)"</li>
+        <li>"We reject the null of no preference"</li>
+        <li>"95% CI: [.61, .84]"</li>
+        <li>"Cohen's <em>d</em>=0.62, medium effect"</li>
+        <li>"Post-hoc power = 78% at <em>d</em>=0.5"</li>
+      </ul>
+    </div>
+    <div class="col-b">
+      <div class="col-head">Valid Bayesian Statements</div>
+      <ul>
+        <li>"Posterior probability effect is positive: .94"</li>
+        <li>"95% credible interval: [.63, .88]"</li>
+        <li>"Prior shifted from .50 to .79"</li>
+        <li>"BF₁₀=8.3 — strong evidence for H₁"</li>
+        <li>"P(authentic &gt;60% | corpus) = 0.91"</li>
+      </ul>
+    </div>
+  </div>
+  <div class="kc" style="margin-top:1rem">
+    <div class="kc-title">What "Significant" Actually Means</div>
+    Statistical significance = "This result would be unlikely if the null were true." It says nothing about effect size, probability the hypothesis is true, or musical relevance. A corpus of 50,000 notes will make every tiny preference "significant" — always pair with effect size.
+  </div>
+</div>
+</div>
+
+<!-- ══ 28 COMMON ERRORS ══════════════════════════════════════════════════ -->
+<div class="slide bg-paper" id="s28">
+<div class="body scroll">
+  <div class="tag">Module 09 · Reporting · Common Errors</div>
+  <h2>Four Errors to Avoid in Every Manuscript</h2>
+  <h3>The most common mistakes in music research writing</h3>
+  <div class="err-box">
+    <div class="err-title">⚠ Common Errors</div>
+    <div class="two-col" style="gap:1rem">
+      <div>
+        <p style="font-size:0.82rem;font-weight:500;margin-bottom:0.3rem">❌ Misreading a p-value:</p>
+        <p style="font-size:0.81rem;font-style:italic;color:var(--muted)">"There is a 95% probability the true effect is positive."</p>
+        <p style="font-size:0.79rem;margin:0.3rem 0 0">A CI is not a probability statement about the parameter for this specific study.</p>
+      </div>
+      <div>
+        <p style="font-size:0.82rem;font-weight:500;margin-bottom:0.3rem">❌ Calling a credible interval "significant":</p>
+        <p style="font-size:0.81rem;font-style:italic;color:var(--muted)">"The result was significant (95% CI [.61, .84])."</p>
+        <p style="font-size:0.79rem;margin:0.3rem 0 0">Bayesian credible intervals have no significance threshold.</p>
+      </div>
+      <div>
+        <p style="font-size:0.82rem;font-weight:500;margin-bottom:0.3rem">❌ Non-significant = no effect:</p>
+        <p style="font-size:0.81rem;font-style:italic;color:var(--muted)">"Since p=.12, we conclude there is no preference."</p>
+        <p style="font-size:0.79rem;margin:0.3rem 0 0">Only a Bayes Factor or equivalence test can support a null claim.</p>
+      </div>
+      <div>
+        <p style="font-size:0.82rem;font-weight:500;margin-bottom:0.3rem">❌ Calling a posterior "significant":</p>
+        <p style="font-size:0.81rem;font-style:italic;color:var(--muted)">"The Bayesian analysis was significant (posterior=.94)."</p>
+        <p style="font-size:0.79rem;margin:0.3rem 0 0">Report posterior probability and credible interval. No threshold.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 29 SAMPLE SIZE WIDGET ════════════════════════════════════════════ -->
+<div class="slide bg-dark" id="s29">
+<div class="body full scroll">
+  <div class="tag">Module 09 · Reporting · Sample Size Widget</div>
+  <h2>What Does N Actually Buy You?</h2>
+  <p>Watch the 95% credible interval shrink as sample size increases. The posterior density draws in real time.</p>
+  <div class="widget">
+    <div class="widget-tag">Widget · Posterior Precision vs. N</div>
+    <div class="sl-row">
+      <div class="sl-label">Observations (n) =</div>
+      <input type="range" id="ss-n" min="2" max="300" value="20" oninput="ssUpdate()">
+      <div class="sl-val" id="ss-nv">20</div>
+    </div>
+    <div class="sl-row">
+      <div class="sl-label">Observed proportion =</div>
+      <input type="range" id="ss-p" min="1" max="99" value="65" oninput="ssUpdate()">
+      <div class="sl-val" id="ss-pv">0.65</div>
+    </div>
+    <div class="result-box" style="margin-top:0.75rem">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;text-align:center;margin-bottom:0.75rem">
+        <div><div class="r-label">Posterior Mean</div><div class="r-big" id="ss-mean">—</div></div>
+        <div><div class="r-label">95% Credible Interval</div><div class="r-big" id="ss-ci" style="font-size:0.95rem">—</div></div>
+        <div><div class="r-label">CI Width</div><div class="r-big" id="ss-width">—</div></div>
+      </div>
+      <canvas id="ss-canvas" style="height:120px;background:rgba(255,255,255,0.02)"></canvas>
+      <div style="font-size:0.73rem;color:rgba(245,240,232,0.42);margin-top:0.55rem" id="ss-note"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 30 REPORTING CHECKLIST ════════════════════════════════════════════ -->
+<div class="slide bg-paper" id="s30">
+<div class="body full scroll">
+  <div class="tag">Module 09 · Reporting · Checklist</div>
+  <h2>Reporting Checklist</h2>
+  <h3>Before submitting to Music Perception, EMR, JRME, PLOS ONE…</h3>
+  <div class="two-col" style="margin-top:1rem;gap:1.25rem">
+    <div style="border:1px solid var(--border)">
+      <div style="padding:0.6rem 1rem;background:rgba(44,95,138,0.07);border-bottom:2px solid var(--blue);font-family:'IBM Plex Mono',monospace;font-size:0.63rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--blue)">Frequentist</div>
+      <div style="padding:0.75rem 1rem" id="rc-freq"></div>
+    </div>
+    <div style="border:1px solid var(--border)">
+      <div style="padding:0.6rem 1rem;background:rgba(200,75,47,0.05);border-bottom:2px solid var(--accent);font-family:'IBM Plex Mono',monospace;font-size:0.63rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--accent)">Bayesian</div>
+      <div style="padding:0.75rem 1rem" id="rc-bayes"></div>
+    </div>
+  </div>
+  <div style="margin-top:1rem;padding:0.85rem 1rem;background:rgba(61,107,79,0.06);border:1px solid rgba(61,107,79,0.2)">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--green);margin-bottom:0.5rem">Universal (both frameworks)</div>
+    <div id="rc-univ"></div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 31 RESPONDING TO REVIEWERS ═══════════════════════════════════════ -->
+<div class="slide bg-cream" id="s31">
+<div class="body scroll">
+  <div class="tag">Module 09 · Reporting · Reviewer Responses</div>
+  <h2>Responding to Reviewers</h2>
+  <h3>Common objections to Bayesian papers — and how to answer them</h3>
+  <div class="acc">
+    <div class="acc-h" onclick="accT(this)"><span>"Your prior is arbitrary — this invalidates the analysis."</span><span class="acc-arrow">▶</span></div>
+    <div class="acc-b">Run a sensitivity analysis across several reasonable priors. If conclusions hold, the choice doesn't matter. Note that frequentist analysis also embeds arbitrary choices (the null, α, test statistic) — they're just less visible. Cite Gelman et al. (2013).</div>
+  </div>
+  <div class="acc">
+    <div class="acc-h" onclick="accT(this)"><span>"Why not just report p-values? Readers won't understand Bayes Factors."</span><span class="acc-arrow">▶</span></div>
+    <div class="acc-b">Offer supplementary frequentist results. Explain BF briefly: "BF₁₀=8.3 means the data are 8.3× more likely under H₁ than H₀ (Jeffreys 1961: strong evidence)." Provide a BF interpretation table in an appendix.</div>
+  </div>
+  <div class="acc">
+    <div class="acc-h" onclick="accT(this)"><span>"Your sample size is too small for this analysis."</span><span class="acc-arrow">▶</span></div>
+    <div class="acc-b">Small samples produce wide credible intervals — which honestly reflect uncertainty. The Bayesian framework with an informative prior is actually <em>more conservative</em> with small N than NHST. Respond: "The credible interval accurately characterizes our uncertainty. We treat this as a pilot estimate."</div>
+  </div>
+  <div class="acc">
+    <div class="acc-h" onclick="accT(this)"><span>"You keep peeking at the data — this inflates Type I error."</span><span class="acc-arrow">▶</span></div>
+    <div class="acc-b">This concern applies to frequentist sequential testing, not Bayesian analysis. Updating your posterior as data arrives is correct Bayesian procedure — there is no Type I error inflation from sequential updating (Wald 1947; Rouder 2014).</div>
+  </div>
+  <div class="acc">
+    <div class="acc-h" onclick="accT(this)"><span>"The journal requires APA format with p-values."</span><span class="acc-arrow">▶</span></div>
+    <div class="acc-b">APA 7th edition (2020) explicitly endorses Bayesian statistics: "Interval estimates for effect sizes and Bayesian analyses are encouraged where appropriate." Report both for compliance; frame Bayesian results as the primary interpretive framework.</div>
+  </div>
+  <div class="acc">
+    <div class="acc-h" onclick="accT(this)"><span>Writing Bayesian results for a mixed audience</span><span class="acc-arrow">▶</span></div>
+    <div class="acc-b">Lead with the musical claim first. Translate credible intervals plainly: "We can be 95% confident the true preference rate falls between 63–88%." This is what readers <em>think</em> a confidence interval says — and with credible intervals, it's actually true. Visualize the posterior density.</div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 32 KEY TAKEAWAYS ═══════════════════════════════════════════════════ -->
+<div class="slide bg-dark staff" id="s32">
+<div class="body full scroll">
+  <div class="tag" style="color:var(--gold)">Summary · Key Takeaways</div>
+  <h2>What Every Music Researcher Should Remember</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1.5rem">
+    <div style="padding:1.1rem;border:1px solid rgba(245,240,232,0.1);border-top:3px solid var(--accent)">
+      <div style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--paper);margin-bottom:0.4rem">Bayes inverts probability</div>
+      <p style="font-size:0.82rem;color:rgba(245,240,232,0.6);margin:0">Frequentist: P(data | H). Bayesian: P(H | data). The latter is what music researchers actually want.</p>
+    </div>
+    <div style="padding:1.1rem;border:1px solid rgba(245,240,232,0.1);border-top:3px solid var(--gold)">
+      <div style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--paper);margin-bottom:0.4rem">Prior = prior knowledge</div>
+      <p style="font-size:0.82rem;color:rgba(245,240,232,0.6);margin:0">Your literature review is your prior. Every analysis embeds assumptions — Bayes just puts them on the table.</p>
+    </div>
+    <div style="padding:1.1rem;border:1px solid rgba(245,240,232,0.1);border-top:3px solid var(--green)">
+      <div style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--paper);margin-bottom:0.4rem">Posteriors accumulate</div>
+      <p style="font-size:0.82rem;color:rgba(245,240,232,0.6);margin:0">Today's posterior is tomorrow's prior. Bayesian science is cumulative by design.</p>
+    </div>
+    <div style="padding:1.1rem;border:1px solid rgba(245,240,232,0.1);border-top:3px solid var(--blue)">
+      <div style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--paper);margin-bottom:0.4rem">Base rates matter</div>
+      <p style="font-size:0.82rem;color:rgba(245,240,232,0.6);margin:0">A surprising result in a low-base-rate situation is less credible than it looks. Always consider P(H) before updating.</p>
+    </div>
+    <div style="padding:1.1rem;border:1px solid rgba(245,240,232,0.1);border-top:3px solid var(--accent)">
+      <div style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--paper);margin-bottom:0.4rem">Report precisely</div>
+      <p style="font-size:0.82rem;color:rgba(245,240,232,0.6);margin:0">Never read p-values as hypothesis probabilities. Credible intervals are actual probability statements. Use effect sizes always.</p>
+    </div>
+    <div style="padding:1.1rem;border:1px solid rgba(245,240,232,0.1);border-top:3px solid var(--gold)">
+      <div style="font-family:'Playfair Display',serif;font-size:1rem;color:var(--paper);margin-bottom:0.4rem">Small samples are honest</div>
+      <p style="font-size:0.82rem;color:rgba(245,240,232,0.6);margin:0">Small N produces wide credible intervals — that's honesty, not failure. Incorporate prior knowledge and report uncertainty accurately.</p>
+    </div>
+  </div>
+  <p class="mono" style="font-size:0.6rem;color:rgba(245,240,232,0.18);margin-top:2rem;text-align:center;letter-spacing:0.08em">Northwestern Bienen School of Music · Empirical &amp; Critical Methods · shanahdt.github.io/mus-345-445</p>
+</div>
+</div>
+
+</div><!-- end #deck -->
+
+<script>
+// ════════════════════════════════════════════════════════════
+// SLIDE ENGINE
+// ════════════════════════════════════════════════════════════
+const TOTAL = 36;
+// Slide order including 7b, 9b, 21b
+const SLIDE_ORDER = [
+  's0','s1','s2','s3','s4','s5','s6','s7','s7b','s8','s9','s9b',
+  's10','s11','s12','s13','s14','s15','s16','s17','s18','s19','s20',
+  's21','s21b','s22','s23','s24','s25','s26','s27','s28','s29','s30','s31','s32'
+];
+let cur = 0;
+const widgetInited = {};
+
+function goTo(n) {
+  // Accept either an index or a slide id string like '9b'
+  let idx = typeof n === 'string' ? SLIDE_ORDER.indexOf('s'+n) : n;
+  if (idx < 0 || idx >= TOTAL) return;
+  const prevEl = document.getElementById(SLIDE_ORDER[cur]);
+  if (prevEl) { prevEl.classList.remove('visible'); setTimeout(() => prevEl.classList.remove('active'), 280); }
+  cur = idx;
+  const s = document.getElementById(SLIDE_ORDER[cur]);
+  if (s) { s.classList.add('active'); requestAnimationFrame(() => requestAnimationFrame(() => s.classList.add('visible'))); }
+  document.getElementById('slide-num').textContent = (cur + 1) + ' / ' + TOTAL;
+  document.getElementById('progress').style.width = (cur / (TOTAL - 1) * 100) + '%';
+  document.getElementById('btn-p').disabled = cur === 0;
+  document.getElementById('btn-n').disabled = cur === TOTAL - 1;
+  document.querySelectorAll('.menu-item').forEach((el, i) => el.classList.toggle('cur', i === cur));
+  document.getElementById('slide-menu').classList.remove('open');
+  // Lazy-init widgets — map by slide id
+  const inits = { 's10': initS10, 's12': initKD, 's17': initUpd, 's19': initCP, 's22': initPrac, 's24': initDX, 's26': initDropout, 's29': initSS, 's30': initRC };
+  const sid = SLIDE_ORDER[cur];
+  if (inits[sid] && !widgetInited[sid]) { inits[sid](); widgetInited[sid] = true; }
+}
+
+function next() { goTo(cur + 1); }
+function prev() { goTo(cur - 1); }
+
+document.addEventListener('keydown', e => {
+  if (['ArrowRight', ' '].includes(e.key)) { e.preventDefault(); next(); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); prev(); }
+  if (e.key === 'Escape') menuToggle();
+});
+
+function menuToggle() { document.getElementById('slide-menu').classList.toggle('open'); }
+
+// Accordion helper
+function accT(h) { h.classList.toggle('open'); h.nextElementSibling.classList.toggle('open'); }
+
+// Init first slide
+goTo(0);
+
+// ════════════════════════════════════════════════════════════
+// SLIDE 10 — PITCH MEMORY POSTERIOR DENSITY CHART
+// ════════════════════════════════════════════════════════════
+function initS10() {
+  // Draw two Beta posteriors: musicians Beta(17,8), non-musicians Beta(11,13)
+  const canvas = document.getElementById('s10-canvas'); if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = canvas.offsetWidth * dpr; canvas.height = 130 * dpr;
+  const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+  const W = canvas.offsetWidth, H = 130;
+  ctx.clearRect(0,0,W,H);
+
+  // Grid lines
+  [0.25,0.5,0.75].forEach(xv => {
+    ctx.strokeStyle='rgba(245,240,232,0.07)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(xv*W,0); ctx.lineTo(xv*W,H); ctx.stroke();
+    ctx.fillStyle='rgba(245,240,232,0.28)'; ctx.font=`${9*dpr/dpr}px IBM Plex Mono`;
+    ctx.fillText(xv.toFixed(2), xv*W+3, H-4);
+  });
+
+  const steps = 300;
+  const xs = Array.from({length:steps}, (_,i) => (i+0.5)/steps);
+
+  function betaPDFLocal(x,a,b) {
+    if(x<=0||x>=1) return 0;
+    return Math.exp((a-1)*Math.log(x)+(b-1)*Math.log(1-x)-(lgam(a)+lgam(b)-lgam(a+b)));
+  }
+
+  const musY  = xs.map(x => betaPDFLocal(x,17,8));
+  const nonY  = xs.map(x => betaPDFLocal(x,11,13));
+  const maxY  = Math.max(...musY, ...nonY);
+
+  // CrI bounds (pre-computed)
+  const musCrI  = [0.46, 0.85];
+  const nonCrI  = [0.26, 0.67];
+
+  function drawShade(ys, crI, col) {
+    ctx.fillStyle = col; ctx.beginPath();
+    let inside = false;
+    xs.forEach((x,i) => {
+      if (x >= crI[0] && x <= crI[1]) {
+        if (!inside) { ctx.moveTo(x*W, H); inside = true; }
+        ctx.lineTo(x*W, H - (ys[i]/maxY)*(H-12));
+      } else if (inside) {
+        ctx.lineTo(xs[i-1]*W, H); ctx.closePath(); ctx.fill(); ctx.beginPath(); inside=false;
+      }
+    });
+    if (inside) { ctx.lineTo(crI[1]*W, H); ctx.closePath(); ctx.fill(); }
+  }
+
+  function drawCurve(ys, col) {
+    ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.beginPath();
+    xs.forEach((x,i) => { const px=x*W, py=H-(ys[i]/maxY)*(H-12); i===0?ctx.moveTo(px,py):ctx.lineTo(px,py); });
+    ctx.stroke();
+  }
+
+  // Non-musicians first (behind)
+  drawShade(nonY, nonCrI, 'rgba(245,240,232,0.06)');
+  drawCurve(nonY, 'rgba(245,240,232,0.3)');
+
+  // Musicians on top
+  drawShade(musY, musCrI, 'rgba(122,171,207,0.18)');
+  drawCurve(musY, '#7aabcf');
+
+  // Mean lines
+  const musMean = 17/25, nonMean = 11/24;
+  [[musMean,'#7aabcf'],[nonMean,'rgba(245,240,232,0.3)']].forEach(([m,c]) => {
+    ctx.strokeStyle=c; ctx.lineWidth=1.5; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(m*W,0); ctx.lineTo(m*W,H); ctx.stroke();
+  });
+  ctx.setLineDash([]);
+
+  // CrI bracket lines
+  [[musCrI,'#7aabcf'],[nonCrI,'rgba(245,240,232,0.25)']].forEach(([ci,c]) => {
+    ctx.strokeStyle=c; ctx.lineWidth=1; ctx.setLineDash([2,3]);
+    [ci[0],ci[1]].forEach(xv => { ctx.beginPath(); ctx.moveTo(xv*W,0); ctx.lineTo(xv*W,H); ctx.stroke(); });
+  });
+  ctx.setLineDash([]);
+}
+
+// ════════════════════════════════════════════════════════════
+// SLIDE 12 — KEY DETECTION
+// ════════════════════════════════════════════════════════════
+const kdNotes = ['C','C#','D','E♭','E','F','F#','G','A♭','A','B♭','B'];
+const kdMaj = [6.35,2.23,3.48,2.33,4.38,4.09,2.52,5.19,2.39,3.66,2.29,2.88];
+const kdMin = [6.33,2.68,3.52,5.38,2.60,3.53,2.54,4.75,3.98,2.69,3.34,3.17];
+const kdMajN = kdMaj.map(v => v / kdMaj.reduce((a,b)=>a+b,0));
+const kdMinN = kdMin.map(v => v / kdMin.reduce((a,b)=>a+b,0));
+const kdKeyNames = ['C','C#/D♭','D','E♭','E','F','F#/G♭','G','A♭','A','B♭','B'];
+const kdKeys = kdKeyNames.flatMap((n,t) => [{name:n+' maj',t,m:'maj'},{name:n+' min',t,m:'min'}]);
+let kdSel = new Set();
+
+function initKD() {
+  const g = document.getElementById('kd-grid');
+  kdNotes.forEach((n, i) => {
+    const d = document.createElement('div');
+    d.className = 'pc'; d.textContent = n; d.id = 'kd-' + i;
+    d.onclick = () => { kdSel.has(i) ? kdSel.delete(i) : kdSel.add(i); d.classList.toggle('sel'); kdCalc(); };
+    g.appendChild(d);
+  });
+}
+
+function kdCalc() {
+  const obs = [...kdSel];
+  const barsEl = document.getElementById('kd-bars');
+  if (!obs.length) { barsEl.innerHTML = '<span style="color:rgba(245,240,232,0.35);font-size:0.8rem">Select notes above</span>'; document.getElementById('kd-note').textContent = ''; return; }
+  const pMaj = 0.60/12, pMin = 0.40/12;
+  const scores = kdKeys.map(k => {
+    const prof = k.m==='maj' ? kdMajN : kdMinN;
+    let lik = 1; obs.forEach(pc => { lik *= (prof[(pc - k.t + 12) % 12] || 0.001); });
+    return { k, u: lik * (k.m==='maj' ? pMaj : pMin) };
+  });
+  const tot = scores.reduce((a,b)=>a+b.u,0);
+  scores.forEach(s => s.post = s.u / tot);
+  scores.sort((a,b) => b.post - a.post);
+  const top = scores.slice(0, 5), mx = top[0].post;
+  barsEl.innerHTML = top.map((s,i) => {
+    const pct = Math.round(s.post*100), bw = Math.round(s.post/mx*100);
+    const col = i===0 ? 'var(--accent)' : 'rgba(184,134,11,0.65)';
+    return `<div class="bar-row"><div class="bar-name" style="min-width:100px;color:${col};font-size:0.67rem">${s.k.name}</div><div class="bar-track"><div class="bar-fill" style="width:${bw}%;background:${col}" data-val="${pct}%"></div></div></div>`;
+  }).join('');
+  document.getElementById('kd-note').textContent = `Top key: ${top[0].k.name} (${(top[0].post*100).toFixed(1)}%). ${obs.length} pitch class${obs.length>1?'es':''} selected.`;
+}
+
+function kdReset() { kdSel.clear(); document.querySelectorAll('#kd-grid .pc').forEach(c=>c.classList.remove('sel')); kdCalc(); }
+
+// ════════════════════════════════════════════════════════════
+// SLIDE 17 — SEQUENTIAL UPDATING
+// ════════════════════════════════════════════════════════════
+let updObs = [], updHist = [], updCrIHist = [];
+
+function initUpd() { updDrawChart(); }
+
+function updPriorChange() {
+  document.getElementById('upd-prior-val').textContent = (parseInt(document.getElementById('upd-prior').value)/100).toFixed(2);
+  updRecalc();
+}
+
+function updAdd(t) {
+  updObs.push(t);
+  const c = document.createElement('div'); c.className='coin '+t; c.textContent=t;
+  document.getElementById('upd-coins').appendChild(c);
+  updRecalc();
+}
+
+function updRecalc() {
+  const pv = parseInt(document.getElementById('upd-prior').value)/100;
+  const ess = 4, a0 = pv*ess, b0 = (1-pv)*ess;
+  const k = updObs.filter(o=>o==='A').length, n = updObs.length;
+  const a = a0+k, b = b0+(n-k);
+  const post = a/(a+b);
+  updHist.push(post);
+  // compute 95% CrI using the same betaInv already available in cpBetaCrI
+  const cri = updBetaCrI(a, b);
+  updCrIHist.push(cri);
+  document.getElementById('upd-post').textContent = post.toFixed(3);
+  document.getElementById('upd-bar').style.width = (post*100)+'%';
+  document.getElementById('upd-stats').textContent = `Observations: ${n} | Authentic: ${k} | Other: ${n-k}`;
+  document.getElementById('upd-cri').textContent = n > 0
+    ? `95% CrI: [${cri[0].toFixed(2)}, ${cri[1].toFixed(2)}]  width: ${(cri[1]-cri[0]).toFixed(2)}`
+    : '95% CrI: —';
+  updDrawChart();
+}
+
+// Beta CrI — self-contained so it works before cpBetaCrI is defined
+function updBetaCrI(a, b) {
+  function rib(x,a,b){
+    if(x<=0)return 0;if(x>=1)return 1;
+    const lb=lgam(a)+lgam(b)-lgam(a+b);
+    const fr=Math.exp(a*Math.log(x)+b*Math.log(1-x)-lb)/a;
+    if(x>(a+1)/(a+b+2))return 1-rib(1-x,b,a);
+    let f=1,C=1,D=0;
+    for(let m=0;m<=200;m++){
+      let d;
+      if(m===0)d=1;
+      else if(m%2===0){const mm=m/2;d=mm*(b-mm)*x/((a+2*mm-1)*(a+2*mm));}
+      else{const mm=(m-1)/2;d=-(a+mm)*(a+b+mm)*x/((a+2*mm)*(a+2*mm+1));}
+      D=1+d*D;if(Math.abs(D)<1e-30)D=1e-30;D=1/D;
+      C=1+d/C;if(Math.abs(C)<1e-30)C=1e-30;
+      f*=C*D;if(Math.abs(C*D-1)<1e-8)break;
+    }
+    return fr*f;
+  }
+  function inv(p,a,b){let lo=0,hi=1,mid;for(let i=0;i<80;i++){mid=(lo+hi)/2;rib(mid,a,b)<p?lo=mid:hi=mid;}return mid;}
+  return [inv(0.025,a,b), inv(0.975,a,b)];
+}
+
+function updReset() {
+  updObs=[]; updHist=[]; updCrIHist=[];
+  document.getElementById('upd-coins').innerHTML='';
+  const p = parseInt(document.getElementById('upd-prior').value)/100;
+  document.getElementById('upd-post').textContent = p.toFixed(2);
+  document.getElementById('upd-bar').style.width = (p*100)+'%';
+  document.getElementById('upd-stats').textContent = 'Observations: 0';
+  document.getElementById('upd-cri').textContent = '95% CrI: —';
+  updDrawChart();
+}
+
+function updDrawChart() {
+  const canvas = document.getElementById('upd-canvas'); if (!canvas) return;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = canvas.offsetWidth * dpr; canvas.height = 130 * dpr;
+  const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+  const W = canvas.offsetWidth, H = 130;
+  ctx.clearRect(0,0,W,H);
+
+  // grid lines
+  [0.25,0.5,0.75].forEach(y => {
+    ctx.strokeStyle='rgba(245,240,232,0.07)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(0,H*(1-y)); ctx.lineTo(W,H*(1-y)); ctx.stroke();
+    ctx.fillStyle='rgba(245,240,232,0.25)'; ctx.font=`${9*dpr/dpr}px IBM Plex Mono`;
+    ctx.fillText(y.toFixed(2),3,H*(1-y)-3);
+  });
+
+  if (updHist.length < 1) return;
+  const N = updHist.length;
+  const xOf = i => N === 1 ? W/2 : (i/(N-1))*W;
+  const yOf = v => H*(1-v);
+
+  // CrI band
+  if (updCrIHist.length >= 1) {
+    ctx.beginPath();
+    updCrIHist.forEach((cri,i) => { i===0 ? ctx.moveTo(xOf(i), yOf(cri[1])) : ctx.lineTo(xOf(i), yOf(cri[1])); });
+    for(let i=updCrIHist.length-1;i>=0;i--) ctx.lineTo(xOf(i), yOf(updCrIHist[i][0]));
+    ctx.closePath();
+    ctx.fillStyle='rgba(44,95,138,0.28)'; ctx.fill();
+
+    // CrI boundary lines
+    ctx.strokeStyle='rgba(44,95,138,0.65)'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+    ctx.beginPath();
+    updCrIHist.forEach((cri,i) => { i===0?ctx.moveTo(xOf(i),yOf(cri[1])):ctx.lineTo(xOf(i),yOf(cri[1])); });
+    ctx.stroke();
+    ctx.beginPath();
+    updCrIHist.forEach((cri,i) => { i===0?ctx.moveTo(xOf(i),yOf(cri[0])):ctx.lineTo(xOf(i),yOf(cri[0])); });
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // posterior mean line
+  ctx.strokeStyle='#c84b2f'; ctx.lineWidth=2; ctx.beginPath();
+  updHist.forEach((p,i) => { i===0?ctx.moveTo(xOf(i),yOf(p)):ctx.lineTo(xOf(i),yOf(p)); });
+  ctx.stroke();
+
+  // dots on mean line
+  updHist.forEach((p,i) => {
+    ctx.beginPath(); ctx.arc(xOf(i),yOf(p),3,0,Math.PI*2);
+    ctx.fillStyle='#c84b2f'; ctx.fill();
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// SLIDE 19 — CORPUS INTERVALLIC
+// ════════════════════════════════════════════════════════════
+const cpTypes = ['Unison','m2','M2','m3','M3','P4','Tritone','P5','≥M6'];
+const cpHuron = [0.12,0.08,0.28,0.10,0.09,0.10,0.03,0.08,0.12];
+let cpNew = cpHuron.map(v => Math.round(v*100));
+
+function initCP() {
+  const pb = document.getElementById('cp-prior-bars');
+  cpHuron.forEach((v,i) => {
+    pb.innerHTML += `<div class="bar-row"><div class="bar-name" style="min-width:65px;font-size:0.63rem">${cpTypes[i]}</div><div class="bar-track"><div class="bar-fill" style="width:${Math.round(v*100)*3}%" data-val="${Math.round(v*100)}%"></div></div></div>`;
+  });
+  const sd = document.getElementById('cp-sliders');
+  cpTypes.forEach((n,i) => {
+    sd.innerHTML += `<div class="sl-row"><div class="sl-label" style="min-width:65px;font-size:0.65rem">${n}</div><input type="range" id="cps${i}" min="0" max="50" value="${cpNew[i]}" oninput="cpNew[${i}]=parseInt(this.value);document.getElementById('cpv${i}').textContent=this.value+'%'"><div class="sl-val" id="cpv${i}">${cpNew[i]}%</div></div>`;
+  });
+}
+
+function cpBetaCrI(a, b) {
+  // 95% CrI for Beta(a,b) via bisection on the regularised incomplete beta
+  function regIncBeta(x, a, b) {
+    // continued fraction approx (Lentz)
+    if (x < 0 || x > 1) return x < 0 ? 0 : 1;
+    if (x === 0) return 0; if (x === 1) return 1;
+    const lbeta = lgam(a) + lgam(b) - lgam(a+b);
+    const front = Math.exp(a*Math.log(x) + b*Math.log(1-x) - lbeta) / a;
+    // use symmetry for stability
+    if (x > (a+1)/(a+b+2)) return 1 - regIncBeta(1-x, b, a);
+    let f=1, C=1, D=0, eps=1e-8;
+    for (let m=0; m<=200; m++) {
+      let d;
+      if (m===0) d=1;
+      else if (m%2===0) { const mm=m/2; d=mm*(b-mm)*x/((a+2*mm-1)*(a+2*mm)); }
+      else { const mm=(m-1)/2; d=-(a+mm)*(a+b+mm)*x/((a+2*mm)*(a+2*mm+1)); }
+      D=1+d*D; if(Math.abs(D)<1e-30)D=1e-30; D=1/D;
+      C=1+d/C; if(Math.abs(C)<1e-30)C=1e-30;
+      f*=C*D; if(Math.abs(C*D-1)<eps) break;
+    }
+    return front * f;
+  }
+  function betaInv(p, a, b) {
+    // bisection
+    let lo=0, hi=1, mid;
+    for (let i=0; i<80; i++) { mid=(lo+hi)/2; regIncBeta(mid,a,b)<p ? lo=mid : hi=mid; }
+    return mid;
+  }
+  return [betaInv(0.025, a, b), betaInv(0.975, a, b)];
+}
+
+function cpUpdate() {
+  document.getElementById('cp-post-section').style.display='block';
+  const ess=100, nNew=parseInt(document.getElementById('cp-n').value);
+  // unnormalised posterior alphas for Dirichlet
+  const alphaPost = cpHuron.map((p,i) => p*ess + (cpNew[i]/100)*nNew);
+  const alphaSum = alphaPost.reduce((a,b)=>a+b,0);
+  // posterior means (normalised)
+  const postMean = alphaPost.map(a => a/alphaSum);
+
+  const pb = document.getElementById('cp-post-bars'); pb.innerHTML='';
+  const maxPct = Math.max(...postMean)*100;
+
+  postMean.forEach((v,i) => {
+    const pct = v*100;
+    const pp  = cpHuron[i]*100;
+    const d   = pct - pp;
+    const col = d>2 ? '#7fc99a' : d<-2 ? 'var(--accent)' : 'rgba(184,134,11,0.85)';
+
+    // marginal Beta for category i: Beta(alphaPost[i], alphaSum - alphaPost[i])
+    const aI = alphaPost[i], bI = alphaSum - aI;
+    const [lo, hi] = cpBetaCrI(aI, bI);
+    const loP = (lo*100).toFixed(1), hiP = (hi*100).toFixed(1);
+
+    // bar width as fraction of available space (max bar = 90%)
+    const barW = (pct/maxPct)*90;
+    const loW  = (lo*100/maxPct)*90;
+    const hiW  = (hi*100/maxPct)*90;
+
+    pb.innerHTML += `
+      <div style="margin-bottom:0.55rem">
+        <div class="bar-row" style="align-items:center;margin-bottom:2px">
+          <div class="bar-name" style="min-width:65px;font-size:0.63rem">${cpTypes[i]}</div>
+          <div class="bar-track" style="position:relative;overflow:visible">
+            <!-- CrI fade region -->
+            <div style="position:absolute;left:${loW}%;width:${hiW-loW}%;top:0;bottom:0;
+              background:linear-gradient(to right,
+                rgba(255,255,255,0) 0%,
+                ${col.replace(')',',0.18)').replace('var(--accent)','rgba(200,75,47').replace('#7fc99a','rgba(127,201,154').replace('rgba(184,134,11,0.85)','rgba(184,134,11')} 20%,
+                ${col.replace(')',',0.18)').replace('var(--accent)','rgba(200,75,47').replace('#7fc99a','rgba(127,201,154').replace('rgba(184,134,11,0.85)','rgba(184,134,11')} 80%,
+                rgba(255,255,255,0) 100%);
+              border-radius:2px"></div>
+            <!-- point estimate bar -->
+            <div class="bar-fill" style="width:${barW}%;background:${col};position:relative;z-index:1"
+              data-val="${pct.toFixed(1)}% (${d>=0?'+':''}${d.toFixed(1)})"></div>
+            <!-- CrI bracket ticks -->
+            <div style="position:absolute;left:${loW}%;top:0;bottom:0;width:2px;background:${col};opacity:0.55;z-index:2"></div>
+            <div style="position:absolute;left:${hiW}%;top:0;bottom:0;width:2px;background:${col};opacity:0.55;z-index:2"></div>
+          </div>
+        </div>
+        <div style="margin-left:65px;font-family:'IBM Plex Mono',monospace;font-size:0.58rem;color:rgba(245,240,232,0.45)">
+          mean ${pct.toFixed(1)}%&nbsp;&nbsp;95% CrI [${loP}%, ${hiP}%]&nbsp;&nbsp;<span style="color:${d>=0?'rgba(127,201,154,0.7)':'rgba(200,75,47,0.7)'}">Δ ${d>=0?'+':''}${d.toFixed(1)}% vs prior</span>
+        </div>
+      </div>`;
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// SLIDES 21 & 25 — QUIZZES
+// ════════════════════════════════════════════════════════════
+function rtaReveal(g) {
+  document.getElementById('rta-q').style.opacity = '0.35';
+  document.getElementById('rta-ans').style.display = 'block';
+  const msgs = {
+    low: {t:'Not quite — lower than you might expect, but not below 50%', b:'The posterior is 54.8% — just above 50%. The 35% base rate keeps confidence low even after passing, but it does cross the halfway mark.'},
+    mid: {t:'Correct!', b:'The posterior is 54.8% — just above 50%. The 35% base rate pulls confidence down even when the checklist is fairly accurate. One assessment rarely gives certainty.'},
+    high: {t:'Surprisingly low, right?', b:'Only 55% — well below the 75% threshold. The low base rate (35%) means even a passed checklist leaves substantial uncertainty. This is why multiple assessments matter.'}
+  };
+  document.getElementById('rta-fb').innerHTML = `<div class="kc-title">${msgs[g].t}</div><p style="margin:0;font-size:0.86rem">${msgs[g].b}</p>`;
+}
+
+function tsReveal(a) {
+  document.getElementById('ts-btns').style.opacity='0.35';
+  document.getElementById('ts-ans').style.display='block';
+  const correct = a === 'A';
+  document.getElementById('ts-fb').innerHTML = `<div class="kc-title">${correct ? '✓ Correct!' : '✗ The answer is A (~44%)'}</div><p style="margin:0;font-size:0.86rem">${correct ? 'The low base rate (20% high-aptitude) means most "talented" labels are false positives. Teachers pattern-match on confidence more than underlying aptitude.' : 'Even with 80% sensitivity, only 20% are high-aptitude — so most positive labels are false positives. Base rates dominate in low-prevalence situations.'}</p>`;
+}
+
+// ════════════════════════════════════════════════════════════
+// SLIDE 22 — PRACTICE TRACKER
+// ════════════════════════════════════════════════════════════
+let pracLog2 = [];
+
+function initPrac() { pracPriorChange(); }
+
+function pracPriorChange() {
+  document.getElementById('prac-prior-val').textContent = (parseInt(document.getElementById('prac-prior').value)/100).toFixed(2);
+  pracRecalc();
+}
+
+function pracLog(t) {
+  pracLog2.push(t);
+  const tag = document.createElement('div');
+  tag.style.cssText = `padding:2px 8px;font-family:'IBM Plex Mono',monospace;font-size:0.63rem;background:${t==='F'?'rgba(61,107,79,0.45)':'rgba(200,75,47,0.3)'};color:${t==='F'?'#7fc99a':'#e8897a'};margin:2px`;
+  tag.textContent = t==='F'?'✓ Full':'✗ Partial';
+  document.getElementById('prac-log').appendChild(tag);
+  pracRecalc();
+}
+
+function pracRecalc() {
+  const p = parseInt(document.getElementById('prac-prior').value)/100;
+  let odds = p / (1-p);
+  pracLog2.forEach(w => { odds *= w==='F' ? (0.85/0.25) : (0.15/0.75); });
+  const post = odds / (1+odds);
+  const n = pracLog2.length, full = pracLog2.filter(w=>w==='F').length;
+  document.getElementById('prac-cp').textContent = post.toFixed(3);
+  document.getElementById('prac-ip').textContent = (1-post).toFixed(3);
+  document.getElementById('prac-bar').style.width = (post*100)+'%';
+  document.getElementById('prac-stats').textContent = `Weeks: ${n} | Full: ${full} | Partial: ${n-full}`;
+  document.getElementById('prac-advice').textContent = post>.85?'→ Strong evidence of consistent practice. Adjust pacing and assignments.':post>.65?'→ Leans consistent. A few more weeks would confirm.':post<.15?'→ Strong evidence of inconsistency. Structured plan recommended.':post<.35?'→ Inconsistent pattern. Consider a scheduling conversation.':'→ Mixed evidence. Continue observing.';
+}
+
+function pracReset() { pracLog2=[]; document.getElementById('prac-log').innerHTML=''; pracRecalc(); }
+
+// ════════════════════════════════════════════════════════════
+// SLIDE 24 — WRONG NOTE DIAGNOSIS
+// ════════════════════════════════════════════════════════════
+function initDX() { dxUpdate(); }
+
+function dxUpdate() {
+  ['e1','e2','e3','e4'].forEach(id => { document.getElementById('dx-'+id+'v').textContent = document.getElementById('dx-'+id).value; });
+  const e1=parseInt(document.getElementById('dx-e1').value)/10;
+  const e2=parseInt(document.getElementById('dx-e2').value)/10;
+  const e3=parseInt(document.getElementById('dx-e3').value)/10;
+  const e4=parseInt(document.getElementById('dx-e4').value)/10;
+  const L = [
+    [e1*.9+.1, e1*.2+.1, e1*.7+.1, e1*.1+.05],
+    [e2*.2+.1, e2*.8+.1, e2*.3+.1, e2*.7+.1],
+    [e3*.8+.1, e3*.2+.1, e3*.9+.1, e3*.2+.1],
+    [e4*.7+.1, e4*.5+.1, e4*.9+.1, e4*.1+.05]
+  ];
+  const unnorm = [0,1,2,3].map(h => 0.25 * L[0][h]*L[1][h]*L[2][h]*L[3][h]);
+  const tot = unnorm.reduce((a,b)=>a+b,0);
+  const post = unnorm.map(v=>v/tot);
+  const hCols  = ['var(--accent)','var(--gold)','#7aabcf','#7fc99a'];
+  const hNames = ['H1: Key sig','H2: Muscle','H3: Reading','H4: Technique'];
+  const eNames = ['Hesitates @ key sig','Error in fast passages','Error in new music','Vanishes memorized'];
+  const labels = ['H1: Key sig','H2: Muscle mem.','H3: Note reading','H4: Technique'];
+  const rems   = ['Review key signature before each run-through.','Slow isolated exercise on B♮; deliberately break the habit.','Note-ID flashcards; circle all Bs on the page before playing.','Isolate B♮ fingering in a technical drill, away from the piece.'];
+
+  const mx = post.indexOf(Math.max(...post));
+
+  // ── colour helper: 0→red, 0.5→neutral, 1→green ──────────
+  function cellBg(v) {
+    // v is 0..1; map to a subtle heat colour
+    if (v >= 0.75) return 'rgba(61,107,79,0.55)';
+    if (v >= 0.55) return 'rgba(61,107,79,0.25)';
+    if (v >= 0.40) return 'rgba(245,240,232,0.07)';
+    if (v >= 0.25) return 'rgba(200,75,47,0.22)';
+    return 'rgba(200,75,47,0.48)';
+  }
+  function cellTxt(v) {
+    if (v >= 0.65) return '#9dd4b0';
+    if (v >= 0.40) return 'rgba(245,240,232,0.7)';
+    return '#e8897a';
+  }
+
+  // ── build matrix HTML ────────────────────────────────────
+  const cs = 'font-family:IBM Plex Mono,monospace;font-size:0.62rem;text-align:center;padding:4px 6px;transition:background 0.2s,color 0.2s';
+  const labelCs = 'font-family:IBM Plex Mono,monospace;font-size:0.58rem;padding:4px 6px;color:rgba(245,240,232,0.45);white-space:nowrap';
+
+  let html = `<table style="width:100%;border-collapse:collapse;table-layout:fixed">`;
+
+  // header row
+  html += `<tr>
+    <td style="${labelCs};width:32%"></td>`;
+  hNames.forEach((h,i) => {
+    const isMax = i === mx;
+    html += `<td style="${cs};color:${hCols[i]};font-weight:bold;border-bottom:1px solid ${hCols[i]};opacity:${isMax?1:0.65};font-size:0.6rem">${h}</td>`;
+  });
+  html += `</tr>`;
+
+  // evidence rows
+  L.forEach((row, ri) => {
+    html += `<tr>`;
+    html += `<td style="${labelCs}">${eNames[ri]}</td>`;
+    row.forEach((v, hi) => {
+      const isMax = hi === mx;
+      html += `<td style="${cs};background:${cellBg(v)};color:${cellTxt(v)};
+        border:1px solid rgba(245,240,232,0.06);
+        font-weight:${v>=0.75?'bold':'normal'};
+        outline:${isMax?'1px solid rgba(255,255,255,0.12)':'none'};
+        border-radius:2px">${v.toFixed(2)}</td>`;
+    });
+    html += `</tr>`;
+  });
+
+  // divider
+  html += `<tr><td colspan="5" style="padding:3px 0;border-top:1px solid rgba(245,240,232,0.15)"></td></tr>`;
+
+  // product row (unnormalized, scaled for readability)
+  const scale = 1 / Math.max(...unnorm);
+  html += `<tr>`;
+  html += `<td style="${labelCs};color:rgba(184,134,11,0.8)">∏ likelihoods</td>`;
+  unnorm.forEach((v, hi) => {
+    const isMax = hi === mx;
+    const rel = v * scale; // 0..1 relative to max
+    html += `<td style="${cs};background:${isMax?'rgba(184,134,11,0.25)':'rgba(245,240,232,0.05)'};
+      color:${isMax?'rgba(184,134,11,1)':'rgba(245,240,232,0.45)'};
+      font-weight:${isMax?'bold':'normal'};
+      border:1px solid rgba(245,240,232,0.06);border-radius:2px">${(v*1000).toFixed(2)}<span style="font-size:0.5rem;opacity:0.6">×10⁻³</span></td>`;
+  });
+  html += `</tr>`;
+
+  // posterior row
+  html += `<tr>`;
+  html += `<td style="${labelCs};color:rgba(245,240,232,0.7);font-weight:bold;border-top:2px solid rgba(245,240,232,0.2)">posterior</td>`;
+  post.forEach((v, hi) => {
+    const isMax = hi === mx;
+    html += `<td style="${cs};background:${isMax?'rgba(255,255,255,0.1)':'rgba(245,240,232,0.04)'};
+      color:${hCols[hi]};font-weight:bold;font-size:0.68rem;
+      border-top:2px solid rgba(245,240,232,0.2);border-radius:2px">${Math.round(v*100)}%</td>`;
+  });
+  html += `</tr></table>`;
+
+  document.getElementById('dx-matrix').innerHTML = html;
+
+  // ── result bars ──────────────────────────────────────────
+  const bars = document.getElementById('dx-bars'); bars.innerHTML='';
+  post.forEach((p,i) => {
+    const pct=Math.round(p*100);
+    bars.innerHTML += `<div class="bar-row"><div class="bar-name" style="min-width:115px;color:${hCols[i]};font-size:0.65rem">${labels[i]}</div><div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${hCols[i]}" data-val="${pct}%"></div></div></div>`;
+  });
+  document.getElementById('dx-advice').textContent = `Most likely: ${labels[mx]} (${Math.round(post[mx]*100)}%). → ${rems[mx]}`;
+}
+
+// ════════════════════════════════════════════════════════════
+// SLIDE 26 — DROPOUT WIDGET
+// ════════════════════════════════════════════════════════════
+const doFactors = [
+  {id:'dof0',label:'Parental involvement',opts:['High (attends lessons)','Moderate','Low'],lrs:[1.8,1.0,0.45]},
+  {id:'dof1',label:'Instrument choice',opts:['Student chose','Parent chose'],lrs:[1.4,0.65]},
+  {id:'dof2',label:'Practice (first month)',opts:['Daily (5-7/wk)','Regular (3-4/wk)','Sporadic (1-2/wk)'],lrs:[1.9,1.1,0.4]},
+  {id:'dof3',label:'Enjoys lessons',opts:['Enthusiastically','Generally yes','Ambivalent/No'],lrs:[1.7,1.0,0.35]},
+  {id:'dof4',label:'Peer involvement',opts:['Friends also play','No peer connection'],lrs:[1.3,0.85]},
+  {id:'dof5',label:'Performance goal',opts:['Recital planned','None scheduled'],lrs:[1.25,0.9]},
+];
+let doSel = {};
+
+function initDropout() {
+  const cont = document.getElementById('dropout-factors');
+  doFactors.forEach(f => {
+    doSel[f.id] = 0;
+    const div = document.createElement('div');
+    div.style.cssText = 'padding:0.7rem;background:rgba(255,255,255,0.04);border-left:2px solid rgba(245,240,232,0.1)';
+    div.innerHTML = `<div style="font-family:'IBM Plex Mono',monospace;font-size:0.6rem;color:var(--gold);letter-spacing:0.08em;margin-bottom:0.3rem;text-transform:uppercase">${f.label}</div>` +
+      f.opts.map((o,i)=>`<label style="display:flex;gap:0.5rem;font-size:0.77rem;color:rgba(245,240,232,0.72);cursor:pointer;margin-bottom:0.18rem"><input type="radio" name="${f.id}" value="${i}" ${i===0?'checked':''} onchange="doSel['${f.id}']=parseInt(this.value);doRecalc()" style="accent-color:var(--accent)">${o}</label>`).join('');
+    cont.appendChild(div);
+  });
+  doRecalc();
+}
+
+function doRecalc() {
+  let odds = 0.60/0.40;
+  doFactors.forEach(f => { odds *= f.lrs[doSel[f.id]||0]; });
+  const prob = odds/(1+odds);
+  document.getElementById('do-prob').textContent = prob.toFixed(3);
+  const bar = document.getElementById('do-bar');
+  bar.style.width = Math.round(prob*100)+'%';
+  bar.style.background = prob>.7?'var(--green)':prob>.45?'var(--gold)':'var(--accent)';
+  document.getElementById('do-interp').textContent = prob>.8?'Strong persistence profile. Most protective factors present.':prob>.65?'Moderately positive. Monitor practice and parental engagement.':prob>.45?'Mixed profile. A proactive check-in conversation is warranted.':prob>.3?'Some risk factors. Address practice environment; set a performance goal.':'Multiple risk factors. Early intervention recommended.';
+}
+
+// ════════════════════════════════════════════════════════════
+// SLIDE 29 — SAMPLE SIZE WIDGET (Beta math)
+// ════════════════════════════════════════════════════════════
+function lgam(x) {
+  const c=[76.18009172947146,-86.50532032941677,24.01409824083091,-1.231739572450155,1.208650973866179e-3,-5.395239384953e-6];
+  let y=x,tmp=x+5.5; tmp-=(x+.5)*Math.log(tmp); let ser=1.000000000190015;
+  for(let j=0;j<6;j++) ser+=c[j]/++y;
+  return -tmp+Math.log(2.5066282746310005*ser/x);
+}
+function betaPDF(x,a,b) { if(x<=0||x>=1) return 0; return Math.exp((a-1)*Math.log(x)+(b-1)*Math.log(1-x)-(lgam(a)+lgam(b)-lgam(a+b))); }
+function incBeta(x,a,b) {
+  if(x<=0) return 0; if(x>=1) return 1;
+  const lb=lgam(a)+lgam(b)-lgam(a+b), front=Math.exp(a*Math.log(x)+b*Math.log(1-x)-lb)/a;
+  const max=200,eps=3e-7; let c=1,d=1-((a+b)*x/(a+1)); if(Math.abs(d)<1e-30)d=1e-30; d=1/d; let h=d;
+  for(let m=1;m<=max;m++){
+    let m2=2*m, aa=m*(b-m)*x/((a-1+m2)*(a+m2)); d=1+aa*d; if(Math.abs(d)<1e-30)d=1e-30; c=1+aa/c; if(Math.abs(c)<1e-30)c=1e-30; d=1/d; h*=d*c;
+    aa=-(a+m)*(a+b+m)*x/((a+m2)*(a+1+m2)); d=1+aa*d; if(Math.abs(d)<1e-30)d=1e-30; c=1+aa/c; if(Math.abs(c)<1e-30)c=1e-30; d=1/d; const del=d*c; h*=del;
+    if(Math.abs(del-1)<eps) break;
+  }
+  return front*h;
+}
+function betaQ(p,a,b,it=120){let lo=0,hi=1; for(let i=0;i<it;i++){const m=(lo+hi)/2;incBeta(m,a,b)<p?lo=m:hi=m;} return (lo+hi)/2;}
+
+function initSS() { ssUpdate(); }
+
+function ssUpdate() {
+  const n = parseInt(document.getElementById('ss-n').value);
+  const pp = parseInt(document.getElementById('ss-p').value);
+  document.getElementById('ss-nv').textContent = n;
+  document.getElementById('ss-pv').textContent = (pp/100).toFixed(2);
+  const k=Math.round(n*pp/100), alpha=1+k, beta=1+(n-k);
+  const mean=alpha/(alpha+beta), lo=betaQ(.025,alpha,beta), hi=betaQ(.975,alpha,beta), w=hi-lo;
+  document.getElementById('ss-mean').textContent=mean.toFixed(3);
+  document.getElementById('ss-ci').textContent=`[${lo.toFixed(2)}, ${hi.toFixed(2)}]`;
+  document.getElementById('ss-width').textContent=w.toFixed(3);
+  document.getElementById('ss-note').textContent = w>.35?`With n=${n}, the CI is very wide (${w.toFixed(2)}). Treat conclusions as preliminary.`:w>.20?`With n=${n}, moderate precision (width ${w.toFixed(2)}). Good for pilot work.`:w>.10?`With n=${n}, good precision (width ${w.toFixed(2)}). Sufficient for most publication claims.`:`With n=${n}, high precision (width ${w.toFixed(2)}). In corpus work, even trivial effects are precise at this N — always pair with effect size.`;
+  const canvas=document.getElementById('ss-canvas'); if(!canvas) return;
+  const dpr=window.devicePixelRatio||1; canvas.width=canvas.offsetWidth*dpr; canvas.height=120*dpr;
+  const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr);
+  const W=canvas.offsetWidth, H=120; ctx.clearRect(0,0,W,H);
+  const xs=Array.from({length:200},(_,i)=>(i+.5)/200);
+  const ys=xs.map(x=>betaPDF(x,alpha,beta)), maxY=Math.max(...ys);
+  [.25,.5,.75].forEach(xv=>{ ctx.strokeStyle='rgba(245,240,232,0.07)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(xv*W,0); ctx.lineTo(xv*W,H); ctx.stroke(); ctx.fillStyle='rgba(245,240,232,0.25)'; ctx.font='9px IBM Plex Mono'; ctx.fillText(xv.toFixed(2),xv*W+3,H-4); });
+  ctx.fillStyle='rgba(200,75,47,0.15)'; let inCI=false; ctx.beginPath();
+  xs.forEach((x,i)=>{ if(x>=lo&&x<=hi){ if(!inCI){ctx.moveTo(x*W,H);inCI=true;} ctx.lineTo(x*W,H-(ys[i]/maxY)*(H-10)); } else if(inCI){ctx.lineTo(xs[i-1]*W,H);ctx.closePath();ctx.fill();ctx.beginPath();inCI=false;} });
+  if(inCI){ctx.lineTo(hi*W,H);ctx.closePath();ctx.fill();}
+  ctx.strokeStyle='#c84b2f'; ctx.lineWidth=2; ctx.beginPath();
+  xs.forEach((x,i)=>{ const px=x*W,py=H-(ys[i]/maxY)*(H-10); i===0?ctx.moveTo(px,py):ctx.lineTo(px,py); }); ctx.stroke();
+  ctx.strokeStyle='rgba(184,134,11,0.8)'; ctx.lineWidth=1.5; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.moveTo(mean*W,0); ctx.lineTo(mean*W,H); ctx.stroke(); ctx.setLineDash([]);
+}
+
+// ════════════════════════════════════════════════════════════
+// SLIDE 30 — REPORTING CHECKLIST
+// ════════════════════════════════════════════════════════════
+const rcFreq=[
+  {l:'Test statistic + degrees of freedom',e:'t(38) = 2.41'},
+  {l:'Exact p-value (not just "< .05")',e:'p = .021'},
+  {l:'Effect size with 95% CI',e:"Cohen's d = 0.74 [0.21, 1.27]"},
+  {l:'Sample size per condition',e:'n₁ = 24, n₂ = 26'},
+  {l:'A priori power analysis',e:'80% power at d=0.5, α=.05 → N=52'},
+  {l:'Assumption checks reported',e:"Shapiro-Wilk, Levene's"},
+  {l:'Multiple comparisons correction',e:'Bonferroni / FDR'},
+  {l:'Direction of effect stated explicitly',e:'"authentic > plagal cadences"'},
+];
+const rcBayes=[
+  {l:'Prior specification + justification',e:'Beta(2,2) — weakly informative'},
+  {l:'Posterior mean/median + SD',e:'mean = 0.74, SD = 0.07'},
+  {l:'95% credible interval',e:'[0.61, 0.86]'},
+  {l:'Bayes Factor (if hypothesis comparison)',e:'BF₁₀ = 12.4 (strong for H₁)'},
+  {l:'Sensitivity analysis across priors',e:'Stable from Beta(1,1) to Beta(5,2)'},
+  {l:'MCMC diagnostics (if sampling)',e:'R̂ < 1.01, ESS > 1000'},
+  {l:'Software and version',e:'brms 2.19.0 / Stan 2.21'},
+  {l:'Posterior predictive check',e:'Simulated data matches observed'},
+];
+const rcUniv=[
+  'Pre-registration link (OSF / AsPredicted)',
+  'Data and analysis code availability statement',
+  'Stimuli / corpus described with access information',
+  'Exclusion criteria stated before analysis',
+  'All conducted analyses reported (not just significant)',
+  'Figures show full distributions, not just means ± error bars',
+  'Musical interpretation alongside statistical results',
+  'Limitations section addressing what analysis cannot tell you',
+];
+
+function initRC() {
+  const f=document.getElementById('rc-freq'), b=document.getElementById('rc-bayes'), u=document.getElementById('rc-univ');
+  if(!f||f.innerHTML) return;
+  f.innerHTML = rcFreq.map((it,i)=>`<label class="chk-item"><input type="checkbox" style="accent-color:var(--blue)"><span><span style="font-size:0.83rem">${it.l}</span><span class="chk-eg">${it.e}</span></span></label>`).join('');
+  b.innerHTML = rcBayes.map((it,i)=>`<label class="chk-item"><input type="checkbox" style="accent-color:var(--accent)"><span><span style="font-size:0.83rem">${it.l}</span><span class="chk-eg">${it.e}</span></span></label>`).join('');
+  u.innerHTML = rcUniv.map((it,i)=>`<label class="chk-item"><input type="checkbox" style="accent-color:var(--green)"><span style="font-size:0.82rem">${it}</span></label>`).join('');
+}
+</script>
+</body>
+</html>
