@@ -760,21 +760,30 @@ small { font-size: 0.77rem; }
     </div>
     <div class="col-b">
       <div class="col-head">Bayesian</div>
-      <p>Model p as unknown. Prior Beta(2,2), update.</p>
-      <div class="formula" style="background:rgba(200,75,47,0.06);border-color:var(--accent);font-size:0.78rem">
-        Prior: Beta(2,2)<br>
-        Data: k=32, n=40 → Posterior: Beta(2+32, 2+8) = <strong>Beta(34,10)</strong><br>
-        <span class="hl">E[p | data] = 34/(34+10) ≈ 0.773</span><br><br>
-        <span style="color:rgba(200,75,47,0.6);font-size:0.68rem;letter-spacing:0.08em;text-transform:uppercase">95% Credible Interval</span><br>
-        Find θ<sub>lo</sub>, θ<sub>hi</sub> such that P(θ<sub>lo</sub> &lt; p &lt; θ<sub>hi</sub> | data) = 0.95<br>
-        <span style="font-size:0.72rem;color:rgba(26,18,8,0.55)">i.e. 2.5th and 97.5th percentiles of Beta(34,10)</span><br>
-        <span style="font-size:0.72rem;color:rgba(26,18,8,0.55)">→ solved numerically via inverse incomplete Beta function</span><br>
-        <span class="hl">[0.63, 0.89]</span>
+
+      <div style="display:grid;grid-template-columns:1fr;gap:0.45rem;margin-top:0.3rem">
+
+        <div style="padding:0.55rem 0.7rem;background:rgba(200,75,47,0.05);border-left:3px solid rgba(200,75,47,0.35);font-family:'IBM Plex Mono',monospace;font-size:0.78rem;line-height:1.75">
+          <span style="font-size:0.6rem;letter-spacing:0.09em;text-transform:uppercase;color:rgba(200,75,47,0.55)">Step 1 — update the tally</span><br>
+          Prior:     <span style="color:var(--blue)">2 authentic</span>,  <span style="color:var(--accent)">2 other</span>  (starting guess)<br>
+          Observed:  <span style="color:var(--blue)">32 authentic</span>,  <span style="color:var(--accent)">8 other</span><br>
+          Tally:     <span style="color:var(--blue)">2+32 = 34 authentic</span>,  <span style="color:var(--accent)">2+8 = 10 other</span>
+        </div>
+
+        <div style="padding:0.55rem 0.7rem;background:rgba(200,75,47,0.05);border-left:3px solid rgba(200,75,47,0.35);font-family:'IBM Plex Mono',monospace;font-size:0.78rem;line-height:1.75">
+          <span style="font-size:0.6rem;letter-spacing:0.09em;text-transform:uppercase;color:rgba(200,75,47,0.55)">Step 2 — best estimate</span><br>
+          authentic / total = <span style="color:var(--blue)">34</span> / (<span style="color:var(--blue)">34</span> + <span style="color:var(--accent)">10</span>) = 34 / 44<br>
+          <span class="hl">≈ 0.773 &nbsp;(77%)</span>
+        </div>
+
+        <div style="padding:0.55rem 0.7rem;background:rgba(200,75,47,0.05);border-left:3px solid rgba(200,75,47,0.35);font-family:'IBM Plex Mono',monospace;font-size:0.78rem;line-height:1.75">
+          <span style="font-size:0.6rem;letter-spacing:0.09em;text-transform:uppercase;color:rgba(200,75,47,0.55)">Step 3 — 95% credible interval</span><br>
+          Middle 95% of Beta(34, 10):<br>
+          <span class="hl">[0.63, 0.89]</span><br>
+          <span style="font-size:0.68rem;color:rgba(26,18,8,0.45)">95% probability Bach's true rate is in this range</span>
+        </div>
+
       </div>
-      <div style="margin-top:0.5rem;padding:0.45rem 0.6rem;background:rgba(200,75,47,0.05);border-left:2px solid rgba(200,75,47,0.3);font-family:'IBM Plex Mono',monospace;font-size:0.62rem;color:rgba(26,18,8,0.5);line-height:1.6">
-        Unlike a frequentist CI, this interval makes a direct probability statement: there is a 95% posterior probability that Bach's true rate lies in [0.63, 0.89]. No repeated-sampling interpretation required.
-      </div>
-      <p style="font-size:0.8rem;color:var(--muted)"><em>"Bach uses authentic cadences ~77% of the time."</em></p>
     </div>
   </div>
   <div class="kc">
@@ -880,14 +889,13 @@ small { font-size: 0.77rem; }
     </div>
     <div class="col-b">
       <div class="col-head">Bayesian (prior from literature)</div>
-      <div class="formula" style="background:rgba(200,75,47,0.06);border-color:var(--accent);font-size:0.78rem">
-        Prior musicians: <span class="hl">Beta(3,2)</span> → mean = 0.60<br>
-        Prior non-musicians: Beta(1,1) → mean = 0.50<br>
-        Posterior musicians: Beta(17,8) → mean = 0.68<br>
-        Posterior non-musicians: Beta(11,13) → mean = 0.46<br>
-        95% CrI musicians: <span class="hl">[0.46, 0.85]</span><br>
-        95% CrI non-musicians: <span class="hl">[0.26, 0.67]</span><br>
-        <span class="hl">P(musicians better | data) ≈ 0.91</span>
+      <div class="formula" style="background:rgba(200,75,47,0.06);border-color:var(--accent);font-size:0.78rem;line-height:1.9">
+        Musicians:     14 correct, 6 wrong  (+3 from prior)<br>
+        → tally: <span class="hl">17 correct, 8 wrong</span>  → best guess: <span class="hl">68%</span><br>
+        Non-musicians: 9 correct, 11 wrong  (no prior)<br>
+        → tally: <span class="hl">10 correct, 12 wrong</span> → best guess: <span class="hl">46%</span><br>
+        <span style="color:var(--muted);font-size:0.72rem">95% CrI musicians: [0.46, 0.85] · non-musicians: [0.26, 0.67]</span><br>
+        <span class="hl">P(musicians better | data) ≈ 91%</span>
       </div>
     </div>
   </div>
@@ -910,8 +918,8 @@ small { font-size: 0.77rem; }
   </div>
 
   <div class="kc">
-    <div class="kc-title">The Small-N Problem</div>
-    p=0.059 → frequentist says "not significant." But the Bayesian posteriors tell a richer story: the distributions <em>overlap substantially</em> (hence only 91% probability, not 99%), and both CrIs are wide — honestly reflecting that n=20 per group can't tightly constrain a proportion. This is the right conclusion from small data, not a false negative.
+    <div class="kc-title">What the picture is telling you</div>
+    Each curve shows where we think the true score probably lives for that group — like a cloud of plausible answers. The clouds are <em>wide</em> because we only have 20 people per group: there's a lot we still don't know. And they <em>overlap</em> in the middle, which is why we're only 91% confident musicians are better — not 99%. The frequentist test said "inconclusive." The Bayesian picture says something more honest: <em>probably a real difference, but we need more data to be sure.</em>
   </div>
 </div>
 </div>
